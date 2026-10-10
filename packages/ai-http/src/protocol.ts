@@ -51,11 +51,12 @@ export type RefineResponse = { refinements: TodoRefinement[] };
 export type PlanResponse = { plan: ExecutionPlan };
 export type ReportResponse = { report: AchievementReport };
 
+/** Single-segment paths on purpose: serverless catch-all routing (e.g. Vercel's api/[...route]) matches one segment. */
 export const ROUTES = {
-  refine: "/api/chief-of-staff/refine",
-  plan: "/api/chief-of-staff/plan",
-  report: "/api/chief-of-staff/report",
-  status: "/api/chief-of-staff/status",
+  refine: "/api/refine",
+  plan: "/api/plan",
+  report: "/api/report",
+  status: "/api/status",
 } as const;
 
 function contextToWire(c: AssistantContext): ContextWire {
