@@ -16,7 +16,7 @@
     "@freenotes/ai-anthropic": "workspace:*",
     "@freenotes/ai-http": "workspace:*",
     "@freenotes/core": "workspace:*",
-    "@hono/node-server": "latest",
-    "hono": "latest"
+    "@hono/node-server": "^2.1.4",
+    "hono": "^4.13.13"
   }
 }
