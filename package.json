@@ -13,7 +13,7 @@
     "test:watch": "TZ=UTC vitest",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run typecheck",
-    "ci": "pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -36,20 +36,40 @@ export interface WorkspaceSnapshot {
   settings: { workingHours: Record<string, { start: string; end: string }>; policy: Record<string, number> };
 }
 
+export type TodoSnapshot = WorkspaceSnapshot["todos"][number];
+export type ScheduleSnapshot = NonNullable<WorkspaceSnapshot["schedule"]>;
+
+export function serializeTodo(t: Todo): TodoSnapshot {
+  return {
+    id: t.id,
+    title: t.title,
+    order: t.order,
+    priority: t.priority,
+    estimatedMinutes: t.estimatedMinutes,
+    estimateSource: t.estimateSource,
+    ...(t.deadline ? { deadline: { date: t.deadline.date.toString(), ...(t.deadline.time ? { time: t.deadline.time.toString() } : {}) } } : {}),
+    ...(t.notes ? { notes: t.notes } : {}),
+  };
+}
+
+export function deserializeTodo(t: TodoSnapshot): Todo {
+  return {
+    id: t.id,
+    title: t.title,
+    order: t.order,
+    priority: t.priority as Todo["priority"],
+    estimatedMinutes: t.estimatedMinutes,
+    estimateSource: t.estimateSource as Todo["estimateSource"],
+    ...(t.deadline ? { deadline: { date: LocalDate.parse(t.deadline.date), ...(t.deadline.time ? { time: LocalTime.parse(t.deadline.time) } : {}) } } : {}),
+    ...(t.notes ? { notes: t.notes } : {}),
+  };
+}
+
 export function serializeWorkspace(ws: Workspace): WorkspaceSnapshot {
   return {
     version: 1,
     compositions: ws.compositions.map((c) => ({ ...c, createdAt: c.createdAt.toISOString(), todoIds: [...c.todoIds] })),
-    todos: ws.todos.map((t) => ({
-      id: t.id,
-      title: t.title,
-      order: t.order,
-      priority: t.priority,
-      estimatedMinutes: t.estimatedMinutes,
-      estimateSource: t.estimateSource,
-      ...(t.deadline ? { deadline: { date: t.deadline.date.toString(), ...(t.deadline.time ? { time: t.deadline.time.toString() } : {}) } } : {}),
-      ...(t.notes ? { notes: t.notes } : {}),
-    })),
+    todos: ws.todos.map(serializeTodo),
     ...(ws.schedule ? { schedule: serializeSchedule(ws.schedule) } : {}),
     plans: { ...ws.plans },
     results: [...ws.results],
@@ -62,16 +82,7 @@ export function serializeWorkspace(ws: Workspace): WorkspaceSnapshot {
 export function deserializeWorkspace(raw: unknown): Workspace {
   const snap = raw as WorkspaceSnapshot;
   if (!snap || snap.version !== 1) throw new DomainError("unsupported-workspace", `Unsupported workspace version: ${String((snap as { version?: unknown })?.version)}`);
-  const todos: Todo[] = snap.todos.map((t) => ({
-    id: t.id,
-    title: t.title,
-    order: t.order,
-    priority: t.priority as Todo["priority"],
-    estimatedMinutes: t.estimatedMinutes,
-    estimateSource: t.estimateSource as Todo["estimateSource"],
-    ...(t.deadline ? { deadline: { date: LocalDate.parse(t.deadline.date), ...(t.deadline.time ? { time: LocalTime.parse(t.deadline.time) } : {}) } } : {}),
-    ...(t.notes ? { notes: t.notes } : {}),
-  }));
+  const todos: Todo[] = snap.todos.map(deserializeTodo);
   const workspace: Workspace = {
     version: 1,
     compositions: snap.compositions.map((c) => ({
@@ -102,7 +113,7 @@ function range(r: TimeRange): { start: string; end: string } {
   return { start: r.start.toISOString(), end: r.end.toISOString() };
 }
 
-function serializeSchedule(s: Schedule): NonNullable<WorkspaceSnapshot["schedule"]> {
+export function serializeSchedule(s: Schedule): ScheduleSnapshot {
   return {
     generatedAt: s.generatedAt.toISOString(),
     horizon: range(s.horizon),
@@ -118,7 +129,7 @@ function serializeSchedule(s: Schedule): NonNullable<WorkspaceSnapshot["schedule
   };
 }
 
-function deserializeSchedule(s: NonNullable<WorkspaceSnapshot["schedule"]>): Schedule {
+export function deserializeSchedule(s: ScheduleSnapshot): Schedule {
   return {
     generatedAt: new Date(s.generatedAt),
     horizon: TimeRange.of(new Date(s.horizon.start), new Date(s.horizon.end)),

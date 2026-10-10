@@ -1,0 +1,22 @@
+{
+  "name": "@freenotes/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "freenotes API server: exposes the Claude chief of staff over HTTP and serves the web app.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/main.js",
+    "dev": "node --watch --experimental-strip-types src/main.ts"
+  },
+  "dependencies": {
+    "@freenotes/ai-anthropic": "workspace:*",
+    "@freenotes/ai-http": "workspace:*",
+    "@freenotes/core": "workspace:*",
+    "@hono/node-server": "latest",
+    "hono": "latest"
+  }
+}

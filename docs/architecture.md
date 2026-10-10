@@ -1,0 +1,76 @@
+# Architecture
+
+freenotes is built domain-first. The domain model is a plain TypeScript library with no runtime dependencies; everything else (Claude, files, browsers, HTTP) is an adapter around it.
+
+## Ubiquitous language
+
+| Term | Meaning |
+|---|---|
+| **Composition** | A note. Every artefact of the loop is a composition of a given *kind*: `braindump`, `schedule`, `execution-plan`, `results`, `achievement-report`, or a plain `note`. |
+| **Braindump** | A composition the executive writes: one commitment per line, with optional deadline ("by Friday"), effort ("~2h") and priority ("[high]", "!low"). |
+| **Todo** | A commitment extracted from a braindump. Has a stable code (`T1`), title, priority, estimated minutes with an *estimate source* (`explicit` / `default` / `assistant`), and an optional **Deadline**. |
+| **Deadline** | A calendar date plus optional wall-clock time. A date-only deadline means "end of that working day". |
+| **Working hours** | Per-weekday windows in which the executive accepts time blocks. |
+| **Schedule** | A set of **time blocks** (todo × time range × part n/m) over a horizon, plus **warnings** (`deadline-at-risk`, `deadline-passed`) and **unscheduled** remainders. |
+| **Execution plan** | Step-by-step execution parameters for one todo: objective, first action, ordered steps, definition of done, inputs, risks. |
+| **Todo result** | What the executive reports for a todo: `done`, `partial`, `blocked`, `skipped` plus notes. |
+| **Achievement report** | The chief of staff's debrief: headline, achievements ordered by significance, improvements with evidence, one **reflection** question per completed todo. |
+| **Chief of staff** | The assistant role (a port). Implementations: Claude, heuristic. |
+| **Workspace** | Everything one executive has: compositions, todos, schedule, plans, results, report, reflection answers, settings. |
+
+## Bounded contexts (inside `@freenotes/core`)
+
+- **planning** — capture and scheduling. Owns `Todo`, the braindump and date-expression parsers, `WorkingHours`, `Schedule` and the scheduler.
+- **execution** — `ExecutionPlan` and its invariants.
+- **review** — results parsing, `AchievementReport`, reflections and their invariants.
+- **composition** — notes as the user sees them.
+- **workspace** — the aggregate that ties the above together and its JSON codec.
+
+Contexts talk through plain types (`TodoId`), never through each other's internals.
+
+## Layers
+
+```
+apps/cli · apps/web · apps/server             UI / transport
+         │
+@freenotes/core application/                  use cases + Freenotes facade
+         │
+@freenotes/core domain (planning, execution,  pure functions, value objects, invariants
+                        review, composition, workspace)
+         │
+ports: ChiefOfStaff, WorkspaceRepository       interfaces the domain needs
+         ▲
+adapters: ai-anthropic, ai-http, storage-fs,   implementations
+          heuristic, memory, localStorage
+```
+
+Use cases are pure: `(workspace, input, deps) → { workspace', output }`. The `Freenotes` facade adds load/save around them. This keeps the whole loop testable without I/O (see `application/freenotes.test.ts`).
+
+## Scheduling
+
+`buildSchedule` is deterministic:
+
+1. Free time = working-hour windows in `[from, from + horizon)` minus busy ranges.
+2. Dated todos, sorted by deadline instant, then priority, then braindump order, are allocated greedily into the earliest free time (EDF). A todo that cannot finish before its deadline is still placed and flagged `deadline-at-risk`; an executive wants to see the problem, not have it hidden.
+3. Undated todos, sorted by priority then braindump order, fill the remaining gaps.
+4. Allocation splits work into blocks of at most `maxBlockMinutes` on `granularityMinutes` boundaries, with `breakMinutes` after each block. Slivers shorter than the granularity are dropped.
+
+## The chief-of-staff port
+
+```ts
+interface ChiefOfStaff {
+  refineTodos(request): Promise<TodoRefinement[]>;        // estimates, priority, clarified titles
+  planExecution(request): Promise<ExecutionPlan>;          // decomposition
+  composeAchievementReport(request): Promise<AchievementReport>;
+}
+```
+
+Both implementations must produce output that passes `validateExecutionPlan` and `validateAchievementReport`. The Claude adapter uses structured outputs (JSON schema derived from zod) and additionally repairs two things the schema cannot express: a missing reflection question for a completed todo, and a question without a question mark. Explicit user estimates are never replaced, regardless of what the model says (`applyRefinements`).
+
+## Persistence
+
+The workspace is small, so repositories load and save it whole. `serializeWorkspace` / `deserializeWorkspace` define the JSON shape (`version: 1`). Implementations: in-memory (tests), JSON file (CLI), `localStorage` (web). Migration hooks belong in the codec when `version: 2` arrives.
+
+## Time
+
+Dates are handled as `LocalDate` / `LocalTime` value objects and converted to instants in the process's local time zone, which is the executive's time zone in both the CLI and the browser. Tests run with `TZ=UTC` so expectations are stable.
