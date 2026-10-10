@@ -16,6 +16,24 @@ freenotes becomes the one place an executive looks. Everything that competes for
 - **Calendar** with Events / 3-day / Month / Insights views, import, block, share, and focus blocks drawn into the free time.
 - **People** as relationship intelligence: contacts derived from recurring 1:1s and small meetings, last touch, "never let a contact go cold".
 
+## What we take from the reference (batch 2: settings and personalization)
+
+- **Settings grouped by concern**, each a card with a coloured icon and a one-line summary: You (profile, memory, goals), Intelligence (engine, autopilot), Communications (email, meetings, integrations), Calendar & Time (calendars, availability, notifications), Privacy & Data (security, sync, backup, permissions), Knowledge (memory, documents), Devices. A search field on top.
+- **Suggestions from the assistant** at the top of the profile screen, each with a reason and Connect / Schedule / Add plus Dismiss: connect Gmail, morning brief at a time it learns, add your name.
+- **A working-style quiz**: eight single-choice questions (first thought on waking, instinct on a new ask, ideal task list, recovery from overwhelm, how a productive week is measured, biggest challenge, behaviour in meetings, dream planning ritual). Each answer column maps to one school: urgent/important triage, inbox-and-next-actions capture, measure-and-adjust cycles, values-and-roles alignment. The result names a style ("Balanced Hybrid") and says how the app adapts: task views and the brief are restructured to match.
+- **Memory the user can see and teach**: facts learnt from conversations (decisions, preferences, client context), listed, editable, plus "teach it something".
+- **Strategic goals as a gatekeeper**: core objectives that filter low-value meetings, and explicit anti-goals / boundaries, the assistant's rejection criteria.
+- **Clients and projects** as tags on events and expenses, so the brief is filtered and attributed automatically.
+- **Native OAuth hand-off** for Google with the platform's consent sheet. One tap, nothing to configure.
+
+### How this lands in freenotes
+
+- **Working style** becomes a value object in a new `profile` context: four weighted dimensions (triage, capture, improve, align) derived deterministically from the eight answers, with a named style. The attention scoring, the brief layout and the default task view read it. The quiz is pure domain code with tests; the UI is a sheet.
+- **Goals and boundaries** join the same context and are passed to the chief of staff with every request, so execution plans and achievement reports are judged against them. They also feed the attention scoring as an explicit "does this serve a goal" signal.
+- **Memory** is a list of facts with provenance (taught by the user, or proposed by the assistant and accepted), stored in the workspace. The assistant proposes, the user confirms; nothing is remembered silently.
+- **Suggestions** are produced by the attention context from missing setup (no calendar connected, no name, no brief time) and ranked with everything else.
+- **Settings** adopt the grouped-card structure. The provider and key screen we already have becomes the Intelligence group.
+
 ## Principles
 
 1. **Never leave the app.** Reading, replying, scheduling, delegating and logging happen inside freenotes. External tools are sources and sinks, not destinations.
