@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSchedule, createTodo, emptyWorkspace, LocalDate, LocalTime, type Workspace } from "@freenotes/core";
+import { scoreWorkingStyle, WORKING_STYLE_QUIZ } from "@freenotes/core";
 import { attention, greeting, nameFromEmail, summaryLine } from "./brief.js";
 
 const monday9 = new Date(2026, 9, 12, 9, 0);
@@ -58,5 +59,20 @@ describe("attention", () => {
     expect(attention(ws, new Date(2026, 9, 12, 12)).map((i) => i.kind)).toEqual(["unrecorded", "unplanned"]);
     const recorded = { ...ws, results: [{ todoId: "T1", status: "done" as const, notes: "" }] };
     expect(attention(recorded, new Date(2026, 9, 12, 12)).map((i) => i.kind)).toEqual(["review", "capture"]);
+  });
+
+  it("lets the working style decide what leads", () => {
+    const todos = [
+      createTodo("T1", 0, { title: "late", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } }),
+      createTodo("T2", 1, { title: "unplanned", estimatedMinutes: 30 }),
+    ];
+    const ws: Workspace = { ...withSchedule(todos), results: [{ todoId: "T1", status: "partial", notes: "" }] };
+    const neutral = attention(ws, monday9).map((i) => i.kind);
+    expect(neutral[0]).toBe("now");
+    const answers = Object.fromEntries(WORKING_STYLE_QUIZ.map((q) => [q.id, q.options.findIndex((o) => o.dimension === "capture")]));
+    const capture = attention({ ...ws, profile: { ...ws.profile, style: scoreWorkingStyle(answers) } }, monday9).map((i) => i.kind);
+    expect(capture[0]).toBe("now");
+    expect(capture.indexOf("unplanned")).toBeLessThan(capture.indexOf("risk"));
+    expect(new Set(capture)).toEqual(new Set(neutral));
   });
 });

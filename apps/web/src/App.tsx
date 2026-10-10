@@ -6,6 +6,7 @@ import { Capture } from "./screens/Capture.js";
 import { NoteDetail, NotesList } from "./screens/Notes.js";
 import { PlanDetail, PlanList } from "./screens/Plan.js";
 import { Review } from "./screens/Review.js";
+import { Onboarding } from "./screens/Onboarding.js";
 import { Settings } from "./screens/Settings.js";
 import { Brief } from "./screens/Today.js";
 import { nameFromEmail } from "./lib/brief.js";
@@ -23,7 +24,12 @@ export function App() {
     window.scrollTo({ top: 0 });
   }, [route.tab, route.id]);
 
-  const name = nameFromEmail(session.session?.user.email);
+  const name = ws?.profile.name ?? nameFromEmail(session.session?.user.email);
+
+  // First run (or Settings → "Run setup again"): the journey replaces the whole shell.
+  if (ws && (!ws.profile.onboardedAt || route.tab === "setup")) {
+    return <Onboarding state={state} session={session} onDone={() => navigate({ tab: "today" }, true)} />;
+  }
   const settingsButton = (
     <button className="icon-btn" onClick={() => navigate({ tab: "settings" })} aria-label="Settings">
       {name ? <span className="avatar">{name.charAt(0)}</span> : <Icon name="settings" />}
@@ -45,7 +51,7 @@ export function App() {
   } else {
     switch (route.tab) {
       case "today":
-        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} />;
+        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} />;
         break;
       case "capture":
         title = "Capture";
@@ -81,6 +87,7 @@ export function App() {
           body = <NotesList workspace={ws} navigate={navigate} />;
         }
         break;
+      case "setup":
       case "settings":
         title = "Settings";
         subtitle = state.assistant?.label;

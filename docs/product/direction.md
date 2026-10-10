@@ -95,7 +95,7 @@ The existing planning, execution, review and composition contexts stay. Today's 
 
 ## Delivery order
 
-1. **Attention and onboarding.** The attention context and the three-step onboarding with the AI disclosure sheet. No integrations yet, but the "Get ready" card already lists them.
+1. **Attention and onboarding.** Shipped 2026-10-10: the first-run journey (welcome, try it, eight-question working-style quiz, your day, AI disclosure, done), a `profile` context (name, style, goals, boundaries) the assistant reads on every request, style-aware attention ranking, and the "Get ready" card. Inline step capture shipped the same day.
 2. **Calendar.** Google and Microsoft calendars, multi-account, busy ranges into the scheduler, focus blocks written back. Calendar tab with 3-day and month views.
 3. **Inbox.** Gmail and Outlook threads as inbox items, triage states, commitment extraction into todos, drafted replies by the chief of staff.
 4. **People.** Derived contacts, cadence, "going cold" surfaced in the brief.

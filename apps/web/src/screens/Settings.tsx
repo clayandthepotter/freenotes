@@ -39,6 +39,8 @@ export function Settings({ state, session, workspace }: { state: FreenotesState;
         ) : null}
       </div>
 
+      <YouCard state={state} workspace={workspace} />
+
       {signedIn && state.assistant?.api && <AssistantSettings state={state} session={session} />}
 
       <SchedulePrefs state={state} workspace={workspace} />
@@ -379,6 +381,51 @@ function AssistantSettings({ state, session }: { state: FreenotesState; session:
             })
           }
         >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function YouCard({ state, workspace }: { state: FreenotesState; workspace: Workspace }) {
+  const p = workspace.profile;
+  const [name, setName] = useState(p.name ?? "");
+  const [goals, setGoals] = useState(p.goals.join("\n"));
+  const [boundaries, setBoundaries] = useState(p.boundaries.join("\n"));
+  const dirty = name.trim() !== (p.name ?? "") || goals !== p.goals.join("\n") || boundaries !== p.boundaries.join("\n");
+  const save = () => state.run("Saving…", (app) => app.updateProfile({ name: name.trim() || null, goals: goals.split("\n"), boundaries: boundaries.split("\n") }));
+  return (
+    <div className="card stack">
+      <h3>You</h3>
+      <label className="field">
+        Name
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="How the brief should address you" />
+      </label>
+      <div className="row between">
+        <div>
+          <div style={{ fontWeight: 600 }}>Working style</div>
+          <div className="muted small">{p.style ? p.style.name : "Not taken yet"}</div>
+        </div>
+        <a className="btn sm outline" href="#/setup">
+          {p.style ? "Retake" : "Take the quiz"}
+        </a>
+      </div>
+      <label className="field">
+        Goals the work should serve
+        <textarea rows={2} value={goals} onChange={(e) => setGoals(e.target.value)} placeholder={"One per line, e.g.\nShip v1 by December"} />
+        <small>Plans and reports are judged against these.</small>
+      </label>
+      <label className="field">
+        Boundaries
+        <textarea rows={2} value={boundaries} onChange={(e) => setBoundaries(e.target.value)} placeholder={"One per line, e.g.\nNo work after 6pm"} />
+        <small>The assistant never suggests crossing them.</small>
+      </label>
+      <div className="row between">
+        <a className="link small" href="#/setup">
+          Run setup again
+        </a>
+        <button className="btn primary sm" disabled={!dirty || !!state.busy} onClick={save}>
           Save
         </button>
       </div>

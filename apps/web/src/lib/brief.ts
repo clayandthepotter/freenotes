@@ -1,4 +1,4 @@
-import { formatDay, formatMinutes, formatTime, LocalDate, type Workspace } from "@freenotes/core";
+import { formatDay, formatMinutes, formatTime, LocalDate, type StyleDimension, type Workspace } from "@freenotes/core";
 
 /** "Good morning, Clay." — the name is optional and already trimmed by the caller. */
 export function greeting(now: Date, name?: string): string {
@@ -61,10 +61,34 @@ export interface AttentionItem {
 }
 
 /**
+ * Which kinds each working style wants to see first. Everything else keeps its natural order
+ * ("now" always leads: whatever the style, the block that is running is the block that is running).
+ */
+const LEADS: Record<StyleDimension, readonly AttentionKind[]> = {
+  triage: ["now", "overdue", "risk", "next"],
+  capture: ["now", "unrecorded", "unplanned", "capture"],
+  improve: ["now", "review", "unrecorded"],
+  align: ["now", "risk", "next"],
+};
+
+/**
  * What needs attention right now, ranked. Deterministic so it is instant and works offline;
- * the model-backed chief of staff shapes plans and reports, not this triage.
+ * the model-backed chief of staff shapes plans and reports, not this triage. The executive's
+ * working style decides which kinds lead; within a kind the natural order is kept.
  */
 export function attention(ws: Workspace, now: Date): AttentionItem[] {
+  const items = rawAttention(ws, now);
+  const style = ws.profile.style?.primary;
+  if (!style) return items;
+  const leads = LEADS[style];
+  const rank = (k: AttentionKind) => {
+    const i = leads.indexOf(k);
+    return i === -1 ? leads.length : i;
+  };
+  return items.map((item, i) => ({ item, i })).sort((a, b) => rank(a.item.kind) - rank(b.item.kind) || a.i - b.i).map((x) => x.item);
+}
+
+function rawAttention(ws: Workspace, now: Date): AttentionItem[] {
   const items: AttentionItem[] = [];
   const todo = (id: string) => ws.todos.find((t) => t.id === id);
   const status = (id: string) => ws.results.find((r) => r.todoId === id)?.status;

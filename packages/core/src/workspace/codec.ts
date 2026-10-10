@@ -7,6 +7,8 @@ import type { Workspace } from "./workspace.js";
 import type { Composition } from "../composition/composition.js";
 import type { AchievementReport } from "../review/achievement-report.js";
 import { DomainError } from "../shared/result.js";
+import { emptyProfile } from "../profile/profile.js";
+import type { WorkingStyle } from "../profile/working-style.js";
 
 /** JSON-safe shape of a workspace. Dates are ISO strings. */
 export interface WorkspaceSnapshot {
@@ -35,6 +37,8 @@ export interface WorkspaceSnapshot {
   results: unknown[];
   report?: unknown;
   reflections: Array<{ todoId: string; question: string; answer: string; answeredAt: string }>;
+  /** Optional for snapshots written before profiles existed. */
+  profile?: { name?: string; style?: unknown; goals: string[]; boundaries: string[]; onboardedAt?: string };
   settings: { workingHours: Record<string, { start: string; end: string }>; policy: Record<string, number> };
 }
 
@@ -78,6 +82,13 @@ export function serializeWorkspace(ws: Workspace): WorkspaceSnapshot {
     results: [...ws.results],
     ...(ws.report ? { report: ws.report } : {}),
     reflections: ws.reflections.map((r) => ({ ...r, answeredAt: r.answeredAt.toISOString() })),
+    profile: {
+      ...(ws.profile.name ? { name: ws.profile.name } : {}),
+      ...(ws.profile.style ? { style: ws.profile.style } : {}),
+      goals: [...ws.profile.goals],
+      boundaries: [...ws.profile.boundaries],
+      ...(ws.profile.onboardedAt ? { onboardedAt: ws.profile.onboardedAt.toISOString() } : {}),
+    },
     settings: { workingHours: ws.settings.workingHours.toJSON(), policy: { ...ws.settings.policy } },
   };
 }
@@ -101,6 +112,15 @@ export function deserializeWorkspace(raw: unknown): Workspace {
     progress: (snap.progress ?? []).map((p) => ({ todoId: p.todoId, step: p.step, done: p.done, note: p.note, updatedAt: new Date(p.updatedAt) })),
     results: snap.results as Workspace["results"],
     reflections: snap.reflections.map((r) => ({ todoId: r.todoId, question: r.question, answer: r.answer, answeredAt: new Date(r.answeredAt) })),
+    profile: snap.profile
+      ? {
+          ...(snap.profile.name ? { name: snap.profile.name } : {}),
+          ...(snap.profile.style ? { style: snap.profile.style as WorkingStyle } : {}),
+          goals: [...(snap.profile.goals ?? [])],
+          boundaries: [...(snap.profile.boundaries ?? [])],
+          ...(snap.profile.onboardedAt ? { onboardedAt: new Date(snap.profile.onboardedAt) } : {}),
+        }
+      : emptyProfile(),
     settings: {
       workingHours: WorkingHours.fromJSON(snap.settings.workingHours),
       policy: snap.settings.policy as unknown as Workspace["settings"]["policy"],

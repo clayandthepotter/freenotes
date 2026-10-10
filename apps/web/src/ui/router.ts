@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type Tab = "today" | "capture" | "plan" | "review" | "notes" | "settings";
+export type Tab = "today" | "capture" | "plan" | "review" | "notes" | "settings" | "setup";
 export interface Route {
   readonly tab: Tab;
   readonly id?: string;
 }
 
-const TABS: Tab[] = ["today", "capture", "plan", "review", "notes", "settings"];
+const TABS: Tab[] = ["today", "capture", "plan", "review", "notes", "settings", "setup"];
 
 function parse(hash: string): Route {
   const [tab = "today", id] = hash.replace(/^#\/?/, "").split("/");

@@ -9,7 +9,7 @@ import type { Route } from "../ui/router.js";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function Brief({ state, workspace, navigate, name }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined }) {
+export function Brief({ state, workspace, navigate, name, signedIn, canSignIn }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined; signedIn: boolean; canSignIn: boolean }) {
   const now = new Date();
   const todayKey = LocalDate.fromDate(now).toString();
   const [dayKey, setDayKey] = useState(todayKey);
@@ -57,6 +57,8 @@ export function Brief({ state, workspace, navigate, name }: { state: FreenotesSt
         <h1>{greeting(now, name)}</h1>
         <p className="summary">{summaryLine(workspace, now)}</p>
       </header>
+
+      <GetReady workspace={workspace} state={state} navigate={navigate} signedIn={signedIn} canSignIn={canSignIn} />
 
       <div className="week" role="tablist" aria-label="Week">
         {days.map((d) => {
@@ -192,5 +194,58 @@ export function Brief({ state, workspace, navigate, name }: { state: FreenotesSt
 
       <StatusSheet todo={picked} state={state} onClose={() => setPicked(undefined)} onOpenPlan={(id) => navigate({ tab: "plan", id })} />
     </div>
+  );
+}
+
+const DISMISS_KEY = "freenotes.setup.dismissed";
+
+/** The setup card: what is still missing to make freenotes fully yours. Dismissible, comes back when something new is missing. */
+function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspace: Workspace; state: FreenotesState; navigate: (r: Route) => void; signedIn: boolean; canSignIn: boolean }) {
+  const items: Array<{ key: string; title: string; body: string; action: string; go: () => void }> = [];
+  if (!workspace.profile.name) items.push({ key: "name", title: "Add your name", body: "Your brief and your reports address you properly.", action: "Add", go: () => navigate({ tab: "setup" }) });
+  if (!workspace.profile.style) items.push({ key: "style", title: "Find your working style", body: "Eight quick questions. The brief and the plans adapt to the answer.", action: "Start", go: () => navigate({ tab: "setup" }) });
+  const heuristic = state.assistant ? !state.assistant.online || state.assistant.status?.name === "heuristic" : false;
+  if (heuristic) items.push({ key: "model", title: "Connect a model", body: "Sharper plans and reports with your own Anthropic or OpenAI key. Offline heuristics until then.", action: "Connect", go: () => navigate({ tab: "settings" }) });
+  if (!signedIn && canSignIn) items.push({ key: "account", title: "Sign in to sync", body: "Keep your workspace on every device. Magic link, no password.", action: "Sign in", go: () => navigate({ tab: "settings" }) });
+  const signature = items.map((i) => i.key).join(",");
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(DISMISS_KEY) === signature;
+    } catch {
+      return false;
+    }
+  });
+  if (items.length === 0 || dismissed) return null;
+  return (
+    <section className="card setup stack" aria-label="Get ready">
+      <div className="row between">
+        <h2>Get ready</h2>
+        <button
+          className="link small"
+          onClick={() => {
+            try {
+              window.localStorage.setItem(DISMISS_KEY, signature);
+            } catch {
+              /* private mode */
+            }
+            setDismissed(true);
+          }}
+        >
+          Later
+        </button>
+      </div>
+      {items.map((i) => (
+        <div key={i.key} className="setup-item">
+          <div className="grow">
+            <div className="t">{i.title}</div>
+            <div className="muted small">{i.body}</div>
+          </div>
+          <button className="btn sm outline" onClick={i.go}>
+            {i.action}
+          </button>
+        </div>
+      ))}
+      <div className="muted small">Calendars, mail and issue trackers: coming next.</div>
+    </section>
   );
 }

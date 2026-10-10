@@ -6,6 +6,7 @@ import { buildSchedule, type ScheduleRequest } from "../planning/scheduler.js";
 import type { Schedule } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
 import type { AssistantContext, ChiefOfStaff, TodoRefinement } from "../ports/chief-of-staff.js";
+import { applyProfilePatch, describeProfile, type Profile, type ProfilePatch } from "../profile/profile.js";
 import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderStepNotes, renderTodos } from "../render/markdown.js";
 import { validateAchievementReport, type AchievementReport, type ReflectionAnswer } from "../review/achievement-report.js";
 import { parseResultReport, type TodoResult } from "../review/result-report.js";
@@ -27,8 +28,9 @@ export interface UseCaseDeps {
   readonly profile?: string;
 }
 
-function context(deps: UseCaseDeps): AssistantContext {
-  return { today: LocalDate.fromDate(deps.clock.now()), ...(deps.profile ? { profile: deps.profile } : {}) };
+function context(deps: UseCaseDeps, workspace: Workspace): AssistantContext {
+  const profile = [deps.profile?.trim(), describeProfile(workspace.profile)].filter(Boolean).join("\n");
+  return { today: LocalDate.fromDate(deps.clock.now()), ...(profile ? { profile } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -51,7 +53,7 @@ export interface CaptureBraindumpOutput {
 
 export async function captureBraindump(workspace: Workspace, input: CaptureBraindumpInput, deps: UseCaseDeps): Promise<CaptureBraindumpOutput> {
   const now = deps.clock.now();
-  const ctx = context(deps);
+  const ctx = context(deps, workspace);
   const parsed = parseBraindump(input.text, { today: ctx.today, startAt: nextTodoNumber(workspace) });
   if (parsed.todos.length === 0) throw new DomainError("empty-braindump", "No todos found. Write one per line, e.g. \"- Finish the deck by Friday ~2h\".");
 
@@ -143,7 +145,7 @@ export async function planExecution(workspace: Workspace, todoId: TodoId, deps: 
       todo,
       otherTodos: workspace.todos.filter((t) => t.id !== todoId),
       ...(workspace.schedule ? { schedule: workspace.schedule } : {}),
-      context: context(deps),
+      context: context(deps, workspace),
     }),
   );
   const composition = createComposition(deps.ids.next(), deps.clock.now(), {
@@ -217,7 +219,7 @@ export async function composeAchievementReport(workspace: Workspace, deps: UseCa
       rawResults,
       plans: workspace.plans,
       ...(workspace.schedule ? { schedule: workspace.schedule } : {}),
-      context: context(deps),
+      context: context(deps, workspace),
     }),
     completed,
   );
@@ -240,4 +242,12 @@ export function answerReflection(workspace: Workspace, todoId: TodoId, answer: s
   const reflection: ReflectionAnswer = { todoId, question: question.question, answer: answer.trim(), answeredAt: deps.clock.now() };
   const reflections = [...workspace.reflections.filter((r) => r.todoId !== todoId), reflection];
   return { workspace: { ...workspace, reflections }, reflection };
+}
+
+// ---------------------------------------------------------------------------------------------
+// 7. Who the executive is
+
+export function updateProfile(workspace: Workspace, patch: ProfilePatch): { workspace: Workspace; profile: Profile } {
+  const profile = applyProfilePatch(workspace.profile, patch);
+  return { workspace: { ...workspace, profile }, profile };
 }

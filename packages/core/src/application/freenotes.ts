@@ -3,6 +3,7 @@ import type { WorkspaceRepository } from "../ports/workspace-repository.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 import { randomIdGenerator, type IdGenerator } from "../shared/ids.js";
 import type { TodoId } from "../planning/todo.js";
+import type { ProfilePatch } from "../profile/profile.js";
 import type { Workspace } from "../workspace/workspace.js";
 import {
   answerReflection,
@@ -12,6 +13,7 @@ import {
   recordResults,
   recordStepProgress,
   scheduleWorkspace,
+  updateProfile,
   type BuildScheduleInput,
   type CaptureBraindumpInput,
   type UseCaseDeps,
@@ -124,6 +126,13 @@ export class Freenotes {
   async reflect(todoId: TodoId, answer: string) {
     const ws = await this.options.repository.load();
     const out = answerReflection(ws, todoId, answer, this.deps);
+    await this.options.repository.save(out.workspace);
+    return out;
+  }
+
+  async updateProfile(patch: ProfilePatch) {
+    const ws = await this.options.repository.load();
+    const out = updateProfile(ws, patch);
     await this.options.repository.save(out.workspace);
     return out;
   }

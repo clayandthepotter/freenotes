@@ -17,6 +17,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 | **Todo result** | What the executive reports for a todo: `done`, `partial`, `blocked`, `skipped` plus notes. |
 | **Achievement report** | The chief of staff's debrief: headline, achievements ordered by significance, improvements with evidence, one **reflection** question per completed todo. |
 | **Chief of staff** | The assistant role (a port). Implementations: Claude, heuristic. |
+| **Profile** | Who the executive is: name, working style (from the eight-question quiz), goals the work should serve, boundaries the assistant must respect. Described to the chief of staff with every request. |
 | **Workspace** | Everything one executive has: compositions, todos, schedule, plans, results, report, reflection answers, settings. |
 
 ## Bounded contexts (inside `@freenotes/core`)
@@ -24,6 +25,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 - **planning** — capture and scheduling. Owns `Todo`, the braindump and date-expression parsers, `WorkingHours`, `Schedule` and the scheduler.
 - **execution** — `ExecutionPlan` and its invariants, and `StepProgress` (ticks and inline notes per step).
 - **review** — results parsing, `AchievementReport`, reflections and their invariants.
+- **profile** — the working-style quiz and its scoring, the `Profile` aggregate and its description for the assistant.
 - **composition** — notes as the user sees them.
 - **workspace** — the aggregate that ties the above together and its JSON codec.
 

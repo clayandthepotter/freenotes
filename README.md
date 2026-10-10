@@ -11,11 +11,21 @@ braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution pl
 ```
 
 <p align="center">
+  <img src="docs/screenshots/welcome.png" width="180" alt="First run: meet your chief of staff" />
+  <img src="docs/screenshots/quiz.png" width="180" alt="The working-style quiz" />
+  <img src="docs/screenshots/style.png" width="180" alt="Your style and how freenotes adapts" />
+  <img src="docs/screenshots/you.png" width="180" alt="Plug in your day: name and working hours" />
+</p>
+<p align="center">
   <img src="docs/screenshots/today.png" width="180" alt="The brief: greeting, week and time-blocked schedule" />
   <img src="docs/screenshots/attention.png" width="180" alt="What needs my attention right now" />
   <img src="docs/screenshots/plan.png" width="180" alt="A todo decomposed into steps" />
   <img src="docs/screenshots/review.png" width="180" alt="The achievement report" />
 </p>
+
+## First run
+
+A new user is walked in before being asked for anything: meet the chief of staff, try it on one real commitment and watch it get structured live, answer eight quick questions that place you in a working style (triage first, capture everything, measure and adjust, values led, or a hybrid), say what to call you and when you work, and read what the assistant can and cannot do before it acts. The brief and the attention ranking adapt to the style; the whole journey can be re-run from Settings, and a "Get ready" card on the brief lists what is still missing (a model key, an account, and soon calendars, mail and issues).
 
 ## The loop
 
