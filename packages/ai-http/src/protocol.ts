@@ -57,7 +57,51 @@ export const ROUTES = {
   plan: "/api/plan",
   report: "/api/report",
   status: "/api/status",
+  providers: "/api/providers",
+  me: "/api/me",
+  settings: "/api/settings",
+  verify: "/api/verify",
 } as const;
+
+export interface StatusResponse {
+  available: boolean;
+  name?: string;
+  /** True when the server has accounts (sign-in, synced settings) enabled. */
+  accounts?: boolean;
+  /** "default" or the signed-in user's provider id. */
+  provider?: string;
+}
+
+/** A user's assistant settings as the server returns them. The API key itself never comes back. */
+export interface SettingsView {
+  profile: string;
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  hasApiKey: boolean;
+  apiKeyLast4?: string;
+  updatedAt?: string;
+}
+
+/** Partial update. `apiKey: null` clears the stored key. */
+export interface SettingsPatch {
+  profile?: string;
+  provider?: string;
+  model?: string | null;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+}
+
+export interface ProviderView {
+  id: string;
+  label: string;
+  defaultModel: string;
+  suggestedModels: string[];
+  needsApiKey: boolean;
+  supportsBaseUrl: boolean;
+  defaultBaseUrl?: string;
+  note?: string;
+}
 
 function contextToWire(c: AssistantContext): ContextWire {
   return { today: c.today.toString(), ...(c.profile ? { profile: c.profile } : {}) };

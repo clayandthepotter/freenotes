@@ -15,6 +15,7 @@
   "dependencies": {
     "@freenotes/api": "workspace:*",
     "@freenotes/core": "workspace:*",
+    "@freenotes/supabase": "workspace:*",
     "@hono/node-server": "^2.1.4",
     "hono": "^4.13.13"
   }

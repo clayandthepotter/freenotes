@@ -54,3 +54,15 @@ export interface ChiefOfStaff {
   /** Turn reported results into an achievement report with improvements and reflection questions. */
   composeAchievementReport(request: ComposeReportRequest): Promise<AchievementReport>;
 }
+
+/** Raised by assistant adapters when a model call cannot be turned into a valid answer. */
+export class ChiefOfStaffError extends Error {
+  constructor(
+    readonly code: "refusal" | "unparseable" | "api" | "config",
+    message: string,
+    override readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "ChiefOfStaffError";
+  }
+}

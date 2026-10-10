@@ -8,7 +8,7 @@ const app = createApi({ chiefOfStaff: new HeuristicChiefOfStaff() });
 
 describe("chief-of-staff API", () => {
   it("answers status and health", async () => {
-    expect(await (await app.request(ROUTES.status)).json()).toEqual({ available: true, name: "heuristic" });
+    expect(await (await app.request(ROUTES.status)).json()).toEqual({ available: true, name: "heuristic", accounts: false, provider: "default" });
     expect((await app.request("/api/health")).status).toBe(200);
   });
 

@@ -79,6 +79,23 @@ describe("HttpChiefOfStaff ↔ handlers", () => {
     await expect(failing.refineTodos({ todos, rawBraindump: "", context })).rejects.toMatchObject({ name: "HttpChiefOfStaffError", status: 500, message: "model exploded" } satisfies Partial<HttpChiefOfStaffError>);
   });
 
+  it("sends the bearer token from getToken on every request", async () => {
+    const seen: string[] = [];
+    const client = new HttpChiefOfStaff({
+      baseUrl: "http://test",
+      getToken: async () => "jwt-123",
+      fetch: async (_input, init) => {
+        seen.push(String((init?.headers as Record<string, string>)?.authorization));
+        return new Response(JSON.stringify({ available: true, provider: "anthropic", profile: "", hasApiKey: true, providers: [] }), { status: 200, headers: { "content-type": "application/json" } });
+      },
+    });
+    await client.status();
+    await client.getSettings();
+    await client.saveSettings({ model: "x" });
+    await client.providers();
+    expect(seen).toEqual(["Bearer jwt-123", "Bearer jwt-123", "Bearer jwt-123", "Bearer jwt-123"]);
+  });
+
   it("reports unavailable when the server is unreachable", async () => {
     const dead = new HttpChiefOfStaff({ baseUrl: "http://test", fetch: async () => { throw new TypeError("fetch failed"); } });
     expect(await dead.status()).toEqual({ available: false });

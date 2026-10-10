@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@freenotes/ai-structured": "workspace:*",
     "@freenotes/core": "workspace:*",
     "zod": "^4.6.5"
   }
