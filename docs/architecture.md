@@ -67,6 +67,10 @@ interface ChiefOfStaff {
 
 Both implementations must produce output that passes `validateExecutionPlan` and `validateAchievementReport`. The Claude adapter uses structured outputs (JSON schema derived from zod) and additionally repairs two things the schema cannot express: a missing reflection question for a completed todo, and a question without a question mark. Explicit user estimates are never replaced, regardless of what the model says (`applyRefinements`).
 
+## Accounts
+
+Optional, provided by Supabase (see ADR 0004). `@freenotes/api` defines two more ports, `Authenticator` and `UserSettingsRepository`, and resolves a `ChiefOfStaff` per request: a signed-in user's provider and decrypted key when configured, otherwise the operator default. `@freenotes/supabase` implements the ports plus a `WorkspaceRepository` that stores the JSON snapshot with a revision for optimistic concurrency. Authorisation is row-level security only; no service-role key exists in the system.
+
 ## Persistence
 
 The workspace is small, so repositories load and save it whole. `serializeWorkspace` / `deserializeWorkspace` define the JSON shape (`version: 1`). Implementations: in-memory (tests), JSON file (CLI), `localStorage` (web). Migration hooks belong in the codec when `version: 2` arrives.

@@ -77,6 +77,18 @@ The web app and its API deploy as one Vercel project: the Vite build is served s
 
 Any Node host works too: `pnpm build && pnpm --filter @freenotes/server start`.
 
+### Accounts and bring your own key
+
+Optional. With a Supabase project configured, users can sign in (magic-link email), sync their workspace across devices, and choose their own model provider and API key in Settings: Anthropic, OpenAI, or any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, a self-hosted Ollama). Keys are encrypted on the server with `FREENOTES_KEY_SECRET` and never sent back to the browser. Without an account the app stays local-first, exactly as before.
+
+Set up:
+
+1. Create a Supabase project and apply the schema in [`supabase/migrations`](supabase/migrations) (tables `workspaces` and `user_settings`, both with row-level security).
+2. In Supabase → Authentication → URL configuration, set the Site URL to your deployment (and add `http://localhost:5173` for development) so magic links redirect correctly.
+3. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `FREENOTES_KEY_SECRET` on the server, and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` for the web build. No service-role key is needed anywhere.
+
+See [ADR 0004](docs/adr/0004-accounts-and-bring-your-own-key.md) for the design.
+
 ### Using Claude
 
 | Variable | Meaning | Default |
@@ -98,11 +110,15 @@ A pnpm monorepo organised around a domain model; see [`docs/architecture.md`](do
 | Package | What it is |
 |---|---|
 | `@freenotes/core` | The domain and application layer. Zero runtime dependencies; runs in Node and browsers. Parsers, scheduler, use cases, markdown renderers, the `ChiefOfStaff` port, a heuristic implementation, an in-memory repository. |
-| `@freenotes/ai-anthropic` | `ChiefOfStaff` implemented with Claude via `@anthropic-ai/sdk` structured outputs. |
+| `@freenotes/ai-structured` | Provider-neutral base for model adapters: schemas, prompts, domain mapping. |
+| `@freenotes/ai-anthropic` | Claude adapter via `@anthropic-ai/sdk` structured outputs. |
+| `@freenotes/ai-openai` | OpenAI-compatible adapter (OpenAI, Groq, Mistral, OpenRouter, Ollama, …). |
+| `@freenotes/api` | The Hono API: provider registry, per-user assistant resolution, encrypted settings, account routes. |
+| `@freenotes/supabase` | Supabase adapters: JWT authenticator, RLS-scoped settings, revisioned workspace sync. |
 | `@freenotes/ai-http` | Wire protocol, `fetch` client and framework-agnostic handlers for putting a chief of staff behind HTTP. |
 | `@freenotes/storage-fs` | Atomic JSON-file `WorkspaceRepository`. |
 | `freenotes` (`apps/cli`) | The command line. |
-| `@freenotes/server` (`apps/server`) | Hono server: chief-of-staff API + static web app. |
+| `@freenotes/server` (`apps/server`) | Node host for the API + static web app. |
 | `@freenotes/web` (`apps/web`) | Vite + React app, local-first. |
 
 ## Development

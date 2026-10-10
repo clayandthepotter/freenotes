@@ -6,6 +6,7 @@ import { Results } from "./components/Results.js";
 import { ScheduleView } from "./components/ScheduleView.js";
 import { Settings } from "./components/Settings.js";
 import { useFreenotes } from "./lib/use-freenotes.js";
+import { useSession } from "./lib/use-session.js";
 
 type Tab = "braindump" | "schedule" | "plans" | "results" | "notes" | "settings";
 
@@ -19,7 +20,8 @@ const TABS: Array<[Tab, string]> = [
 ];
 
 export function App() {
-  const state = useFreenotes();
+  const session = useSession();
+  const state = useFreenotes(session);
   const [tab, setTab] = useState<Tab>("braindump");
   const ws = state.workspace;
 
@@ -42,8 +44,19 @@ export function App() {
           </button>
         ))}
         <div className="status">
-          <span className={`dot ${state.assistant?.online ? "online" : "offline"}`} />
-          {state.assistant?.label ?? "connecting…"}
+          <div>
+            <span className={`dot ${state.assistant?.online ? "online" : "offline"}`} />
+            {state.assistant?.label ?? "connecting…"}
+          </div>
+          <div className="account">
+            {session.loading ? "…" : session.session ? `☁ ${session.session.user.email ?? "signed in"}` : session.available ? (
+              <button className="link" onClick={() => setTab("settings")}>
+                Sign in to sync
+              </button>
+            ) : (
+              "local only"
+            )}
+          </div>
         </div>
       </nav>
       <main>
@@ -66,7 +79,7 @@ export function App() {
         ) : tab === "notes" ? (
           <Notes workspace={ws} />
         ) : (
-          <Settings state={state} />
+          <Settings state={state} session={session} />
         )}
       </main>
     </div>

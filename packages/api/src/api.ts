@@ -67,13 +67,26 @@ export function createApi(options: ApiOptions): Hono<{ Variables: Vars }> {
 
   const handlersFor = (assistant: ResolvedAssistant) => createChiefOfStaffHandlers(assistant.chiefOfStaff);
 
+  /** A signed-in user's stored profile applies unless the request carries its own. */
+  const withProfile = <B extends { context?: { profile?: string } }>(body: B, assistant: ResolvedAssistant): B =>
+    assistant.profile && body?.context && !body.context.profile ? { ...body, context: { ...body.context, profile: assistant.profile } } : body;
+
   app.get(ROUTES.status, async (c) => {
     const assistant = await resolve(c);
     return c.json({ ...handlersFor(assistant).status(), accounts, provider: assistant.provider });
   });
-  app.post(ROUTES.refine, async (c) => c.json(await handlersFor(await resolve(c)).refine(await c.req.json())));
-  app.post(ROUTES.plan, async (c) => c.json(await handlersFor(await resolve(c)).plan(await c.req.json())));
-  app.post(ROUTES.report, async (c) => c.json(await handlersFor(await resolve(c)).report(await c.req.json())));
+  app.post(ROUTES.refine, async (c) => {
+    const assistant = await resolve(c);
+    return c.json(await handlersFor(assistant).refine(withProfile(await c.req.json(), assistant)));
+  });
+  app.post(ROUTES.plan, async (c) => {
+    const assistant = await resolve(c);
+    return c.json(await handlersFor(assistant).plan(withProfile(await c.req.json(), assistant)));
+  });
+  app.post(ROUTES.report, async (c) => {
+    const assistant = await resolve(c);
+    return c.json(await handlersFor(assistant).report(withProfile(await c.req.json(), assistant)));
+  });
   app.get("/api/health", (c) => c.json({ ok: true }));
 
   app.get(ROUTES.providers, (c) => c.json({ providers: providerViews() }));

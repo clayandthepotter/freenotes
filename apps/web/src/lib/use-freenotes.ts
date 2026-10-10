@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Freenotes, type Workspace } from "@freenotes/core";
+import { Freenotes, type Workspace, type WorkspaceRepository } from "@freenotes/core";
+import { SupabaseWorkspaceRepository } from "@freenotes/supabase";
 import { LocalStorageWorkspaceRepository } from "./local-storage-repository.js";
 import { resolveAssistant, type AssistantMode, type ResolvedAssistant } from "./assistant.js";
+import { supabase } from "./supabase.js";
+import type { SessionState } from "./use-session.js";
 
 export interface FreenotesState {
   readonly workspace: Workspace | undefined;
@@ -9,36 +12,74 @@ export interface FreenotesState {
   readonly busy: string | undefined;
   readonly error: string | undefined;
   readonly app: Freenotes | undefined;
-  readonly repository: LocalStorageWorkspaceRepository;
+  readonly localRepository: LocalStorageWorkspaceRepository;
+  /** "cloud" when signed in and syncing to the account, else "local". */
+  readonly storage: "cloud" | "local";
   run<T>(label: string, action: (app: Freenotes) => Promise<T>): Promise<T | undefined>;
   setMode(mode: AssistantMode): void;
   mode: AssistantMode;
   clearError(): void;
   reload(): Promise<void>;
+  /** Re-resolve the assistant, e.g. after settings changed on the server. */
+  refreshAssistant(): void;
+  profile: string;
+  setProfile(p: string): void;
 }
 
 const MODE_KEY = "freenotes.assistant.mode";
 const PROFILE_KEY = "freenotes.profile";
 
-export function useFreenotes(): FreenotesState & { profile: string; setProfile(p: string): void } {
-  const repository = useMemo(() => new LocalStorageWorkspaceRepository(window.localStorage), []);
+export function useFreenotes(session: SessionState): FreenotesState {
+  const localRepository = useMemo(() => new LocalStorageWorkspaceRepository(window.localStorage), []);
+  const userId = session.session?.user.id;
+  const storage: "cloud" | "local" = userId && supabase ? "cloud" : "local";
+
+  const repository = useMemo<WorkspaceRepository>(() => (userId && supabase ? new SupabaseWorkspaceRepository(supabase, userId) : localRepository), [userId, localRepository]);
+
   const [workspace, setWorkspace] = useState<Workspace>();
   const [assistant, setAssistant] = useState<ResolvedAssistant>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
+  const [assistantNonce, setAssistantNonce] = useState(0);
   const [mode, setModeState] = useState<AssistantMode>(() => (window.localStorage.getItem(MODE_KEY) as AssistantMode | null) ?? "auto");
   const [profile, setProfileState] = useState<string>(() => window.localStorage.getItem(PROFILE_KEY) ?? "");
   const appRef = useRef<Freenotes | undefined>(undefined);
 
-  const reload = useCallback(async () => setWorkspace(await repository.load()), [repository]);
+  const reload = useCallback(async () => {
+    try {
+      setWorkspace(await repository.load());
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [repository]);
 
+  // Load the workspace whenever the storage changes; on first sign-in offer to carry the local workspace over.
   useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  useEffect(() => {
+    if (session.loading) return;
     let cancelled = false;
-    resolveAssistant(mode)
+    void (async () => {
+      if (repository instanceof SupabaseWorkspaceRepository) {
+        try {
+          const local = await localRepository.load();
+          const hasLocalData = local.todos.length > 0 || local.compositions.length > 0;
+          if (hasLocalData && (await repository.isEmpty()) && window.confirm("Your account has no workspace yet. Copy the workspace from this browser into your account?")) {
+            await repository.save(local);
+          }
+        } catch (e) {
+          if (!cancelled) setError((e as Error).message);
+        }
+      }
+      if (!cancelled) await reload();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [repository, localRepository, reload, session.loading]);
+
+  useEffect(() => {
+    if (session.loading) return;
+    let cancelled = false;
+    resolveAssistant(mode, session.getToken)
       .then((a) => {
         if (!cancelled) setAssistant(a);
       })
@@ -48,14 +89,16 @@ export function useFreenotes(): FreenotesState & { profile: string; setProfile(p
     return () => {
       cancelled = true;
     };
-  }, [mode]);
+  }, [mode, session.loading, session.getToken, userId, assistantNonce]);
 
   const app = useMemo(() => {
     if (!assistant) return undefined;
-    const instance = new Freenotes({ repository, chiefOfStaff: assistant.chiefOfStaff, ...(profile.trim() ? { profile: profile.trim() } : {}) });
+    // Signed-in users keep their profile on the server; it is applied there.
+    const localProfile = storage === "local" && profile.trim() ? { profile: profile.trim() } : {};
+    const instance = new Freenotes({ repository, chiefOfStaff: assistant.chiefOfStaff, ...localProfile });
     appRef.current = instance;
     return instance;
-  }, [assistant, repository, profile]);
+  }, [assistant, repository, profile, storage]);
 
   const run = useCallback(
     async <T,>(label: string, action: (app: Freenotes) => Promise<T>): Promise<T | undefined> => {
@@ -87,5 +130,21 @@ export function useFreenotes(): FreenotesState & { profile: string; setProfile(p
     setProfileState(p);
   }, []);
 
-  return { workspace, assistant, busy, error, app, repository, run, setMode, mode, clearError: () => setError(undefined), reload, profile, setProfile };
+  return {
+    workspace,
+    assistant,
+    busy,
+    error,
+    app,
+    localRepository,
+    storage,
+    run,
+    setMode,
+    mode,
+    clearError: () => setError(undefined),
+    reload,
+    refreshAssistant: () => setAssistantNonce((n) => n + 1),
+    profile,
+    setProfile,
+  };
 }
