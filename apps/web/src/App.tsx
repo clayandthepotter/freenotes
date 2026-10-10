@@ -1,87 +1,112 @@
-import { useState } from "react";
-import { Braindump } from "./components/Braindump.js";
-import { Notes } from "./components/Notes.js";
-import { Plans } from "./components/Plans.js";
-import { Results } from "./components/Results.js";
-import { ScheduleView } from "./components/ScheduleView.js";
-import { Settings } from "./components/Settings.js";
+import { useEffect } from "react";
+import { formatDay } from "@freenotes/core";
 import { useFreenotes } from "./lib/use-freenotes.js";
 import { useSession } from "./lib/use-session.js";
-
-type Tab = "braindump" | "schedule" | "plans" | "results" | "notes" | "settings";
-
-const TABS: Array<[Tab, string]> = [
-  ["braindump", "1 · Braindump"],
-  ["schedule", "2 · Schedule"],
-  ["plans", "3 · Plans"],
-  ["results", "4 · Results"],
-  ["notes", "5 · Notes"],
-  ["settings", "Settings"],
-];
+import { Capture } from "./screens/Capture.js";
+import { NoteDetail, NotesList } from "./screens/Notes.js";
+import { PlanDetail, PlanList } from "./screens/Plan.js";
+import { Review } from "./screens/Review.js";
+import { Settings } from "./screens/Settings.js";
+import { Today } from "./screens/Today.js";
+import { Icon } from "./ui/Icon.js";
+import { useRoute } from "./ui/router.js";
+import { TabBar, TopBar } from "./ui/Shell.js";
 
 export function App() {
   const session = useSession();
   const state = useFreenotes(session);
-  const [tab, setTab] = useState<Tab>("braindump");
+  const { route, navigate, back } = useRoute();
   const ws = state.workspace;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [route.tab, route.id]);
+
+  const settingsButton = (
+    <button className={`icon-btn ${state.assistant?.online ? "badge" : ""}`} onClick={() => navigate({ tab: "settings" })} aria-label="Settings">
+      <Icon name="settings" />
+      {state.assistant?.online && <span className="dot" />}
+    </button>
+  );
+
+  let title = "Today";
+  let subtitle: string | undefined = formatDay(new Date());
+  let onBack: (() => void) | undefined;
+  let body: React.ReactNode = null;
+
+  if (!ws) {
+    body = (
+      <div className="banner busy">
+        <span className="spinner" /> Loading…
+      </div>
+    );
+  } else {
+    switch (route.tab) {
+      case "today":
+        body = <Today state={state} workspace={ws} navigate={navigate} />;
+        break;
+      case "capture":
+        title = "Capture";
+        subtitle = "One line per thing you must do";
+        body = <Capture state={state} workspace={ws} navigate={navigate} />;
+        break;
+      case "plan":
+        if (route.id) {
+          title = "Plan";
+          subtitle = route.id;
+          onBack = () => back({ tab: "plan" });
+          body = <PlanDetail state={state} workspace={ws} id={route.id} />;
+        } else {
+          title = "Plan";
+          subtitle = "Execution parameters per todo";
+          body = <PlanList state={state} workspace={ws} navigate={navigate} />;
+        }
+        break;
+      case "review":
+        title = "Review";
+        subtitle = "Outcomes, achievements, reflection";
+        body = <Review state={state} workspace={ws} navigate={navigate} />;
+        break;
+      case "notes":
+        if (route.id) {
+          title = "Note";
+          subtitle = undefined;
+          onBack = () => back({ tab: "notes" });
+          body = <NoteDetail workspace={ws} id={route.id} />;
+        } else {
+          title = "Notes";
+          subtitle = `${ws.compositions.length} composition${ws.compositions.length === 1 ? "" : "s"}`;
+          body = <NotesList workspace={ws} navigate={navigate} />;
+        }
+        break;
+      case "settings":
+        title = "Settings";
+        subtitle = state.assistant?.label;
+        onBack = () => back({ tab: "today" });
+        body = <Settings state={state} session={session} workspace={ws} />;
+        break;
+    }
+  }
 
   return (
     <div className="app">
-      <nav>
-        <div className="brand">
-          <span className="logo">🗒️</span>
-          <div>
-            <strong>freenotes</strong>
-            <small>with a chief of staff</small>
-          </div>
-        </div>
-        {TABS.map(([id, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
-            {label}
-            {id === "braindump" && ws?.todos.length ? <span className="count">{ws.todos.length}</span> : null}
-            {id === "plans" && ws ? <span className="count">{Object.keys(ws.plans).length}</span> : null}
-            {id === "notes" && ws?.compositions.length ? <span className="count">{ws.compositions.length}</span> : null}
-          </button>
-        ))}
-        <div className="status">
-          <div>
-            <span className={`dot ${state.assistant?.online ? "online" : "offline"}`} />
-            {state.assistant?.label ?? "connecting…"}
-          </div>
-          <div className="account">
-            {session.loading ? "…" : session.session ? `☁ ${session.session.user.email ?? "signed in"}` : session.available ? (
-              <button className="link" onClick={() => setTab("settings")}>
-                Sign in to sync
-              </button>
-            ) : (
-              "local only"
-            )}
-          </div>
-        </div>
-      </nav>
-      <main>
-        {state.busy && <div className="banner busy">{state.busy}</div>}
-        {state.error && (
-          <div className="banner error" onClick={state.clearError}>
-            {state.error} <small>(click to dismiss)</small>
-          </div>
-        )}
-        {!ws ? (
-          <p className="muted">Loading…</p>
-        ) : tab === "braindump" ? (
-          <Braindump state={state} workspace={ws} onDone={() => setTab("schedule")} />
-        ) : tab === "schedule" ? (
-          <ScheduleView state={state} workspace={ws} />
-        ) : tab === "plans" ? (
-          <Plans state={state} workspace={ws} />
-        ) : tab === "results" ? (
-          <Results state={state} workspace={ws} />
-        ) : tab === "notes" ? (
-          <Notes workspace={ws} />
-        ) : (
-          <Settings state={state} session={session} />
-        )}
-      </main>
+      <TabBar route={route} navigate={navigate} counts={{}} />
+      <div className="main">
+        <TopBar title={title} {...(subtitle ? { subtitle } : {})} {...(onBack ? { onBack } : {})} right={route.tab === "settings" ? undefined : settingsButton} />
+        <main className="content stack">
+          {state.busy && (
+            <div className="banner busy">
+              <span className="spinner" /> {state.busy}
+            </div>
+          )}
+          {state.error && (
+            <div className="banner error" onClick={state.clearError} role="alert">
+              <Icon name="warn" size={18} /> <span className="grow">{state.error}</span>
+            </div>
+          )}
+          {body}
+        </main>
+      </div>
     </div>
   );
 }

@@ -82,12 +82,34 @@ export class Freenotes {
     return plans;
   }
 
+  /** Record results and compose the achievement report in one go. */
   async report(text: string) {
     const ws = await this.options.repository.load();
     const recorded = recordResults(ws, text, this.deps);
     const composed = await composeAchievementReport(recorded.workspace, this.deps);
     await this.options.repository.save(composed.workspace);
     return { ...composed, results: recorded.results, unmatchedLines: recorded.unmatchedLines };
+  }
+
+  /** Record results only (e.g. a one-tap status from a todo card); compose the report later. */
+  async record(text: string) {
+    const ws = await this.options.repository.load();
+    const out = recordResults(ws, text, this.deps);
+    await this.options.repository.save(out.workspace);
+    return out;
+  }
+
+  /** Record one todo's outcome without writing a results composition line by hand. */
+  recordOne(todoId: TodoId, status: "done" | "partial" | "blocked" | "skipped", notes = "") {
+    return this.record(`${todoId}: ${status}${notes.trim() ? ` — ${notes.trim()}` : ""}`);
+  }
+
+  /** Compose (or re-compose) the achievement report from everything recorded so far. */
+  async compose() {
+    const ws = await this.options.repository.load();
+    const out = await composeAchievementReport(ws, this.deps);
+    await this.options.repository.save(out.workspace);
+    return out;
   }
 
   async reflect(todoId: TodoId, answer: string) {

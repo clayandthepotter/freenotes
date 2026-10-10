@@ -2,13 +2,20 @@
 
 **Notes with a chief of staff.** Braindump what you must do, get a time-blocked schedule, step-by-step execution plans, an achievement report with areas to improve, and a reflection question for everything you finished.
 
-Open source (MIT), local-first, TypeScript. Works fully offline with a built-in heuristic assistant; add an Anthropic API key and Claude takes the chief-of-staff seat.
+Open source (MIT), local-first, mobile-first, installable as a PWA. Works fully offline with a built-in heuristic assistant; add an Anthropic API key and Claude takes the chief-of-staff seat.
 
 ```
 braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution plans
                                                           │
        reflection ◀── achievement report ◀── results ◀────┘
 ```
+
+<p align="center">
+  <img src="docs/screenshots/today.png" width="180" alt="Today: the time-blocked schedule" />
+  <img src="docs/screenshots/plan.png" width="180" alt="A todo decomposed into steps" />
+  <img src="docs/screenshots/outcome.png" width="180" alt="Recording an outcome" />
+  <img src="docs/screenshots/review.png" width="180" alt="The achievement report" />
+</p>
 
 ## The loop
 

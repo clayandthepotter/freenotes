@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@freenotes/ai-http": "workspace:*",
     "@freenotes/api": "workspace:*",
     "@freenotes/core": "workspace:*",

@@ -85,6 +85,19 @@ T5 blocked on CI
     await expect(fn.reflect("T1", "x")).rejects.toThrow(/no open reflection question/);
   });
 
+  it("records one todo at a time and composes the report on demand", async () => {
+    const fn = app();
+    await fn.braindump({ text: "- Finish deck by Friday ~2h\n- Call the dentist" });
+    const r1 = await fn.recordOne("T1", "done", "shipped it");
+    expect(r1.results).toEqual([{ todoId: "T1", status: "done", notes: "shipped it" }]);
+    const r2 = await fn.recordOne("T2", "skipped");
+    expect(r2.results).toEqual([{ todoId: "T2", status: "skipped", notes: "" }]);
+    expect((await fn.workspace()).report).toBeUndefined();
+    const composed = await fn.compose();
+    expect(composed.report.reflections.map((r) => r.todoId)).toEqual(["T1"]);
+    expect((await fn.workspace()).results.map((r) => r.status)).toEqual(["done", "skipped"]);
+  });
+
   it("can skip refinement", async () => {
     const fn = app();
     const out = await fn.braindump({ text: "- Call the dentist", refine: false });
