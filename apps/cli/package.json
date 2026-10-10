@@ -1,0 +1,21 @@
+{
+  "name": "freenotes",
+  "version": "0.1.0",
+  "description": "freenotes command line: braindump → schedule → plan → report → reflect, with an AI chief of staff.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "freenotes": "./dist/bin.js" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/bin.js"
+  },
+  "dependencies": {
+    "@freenotes/ai-anthropic": "workspace:*",
+    "@freenotes/core": "workspace:*",
+    "@freenotes/storage-fs": "workspace:*"
+  }
+}
