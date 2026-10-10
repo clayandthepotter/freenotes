@@ -10,6 +10,7 @@ import {
   composeAchievementReport,
   planExecution,
   recordResults,
+  recordStepProgress,
   scheduleWorkspace,
   type BuildScheduleInput,
   type CaptureBraindumpInput,
@@ -80,6 +81,14 @@ export class Freenotes {
     }
     await this.options.repository.save(ws);
     return plans;
+  }
+
+  /** Tick a plan step and/or write its answer inline. */
+  async step(todoId: TodoId, step: number, patch: { done?: boolean; note?: string }) {
+    const ws = await this.options.repository.load();
+    const out = recordStepProgress(ws, { todoId, step, ...patch }, this.deps);
+    await this.options.repository.save(out.workspace);
+    return out;
   }
 
   /** Record results and compose the achievement report in one go. */

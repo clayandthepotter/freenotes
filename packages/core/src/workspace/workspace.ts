@@ -1,5 +1,6 @@
 import type { Composition } from "../composition/composition.js";
 import type { ExecutionPlan } from "../execution/execution-plan.js";
+import type { StepProgress } from "../execution/step-progress.js";
 import { DEFAULT_POLICY, type Schedule, type SchedulingPolicy } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
 import { WorkingHours } from "../planning/working-hours.js";
@@ -21,6 +22,8 @@ export interface Workspace {
   readonly todos: readonly Todo[];
   readonly schedule?: Schedule;
   readonly plans: Readonly<Record<TodoId, ExecutionPlan>>;
+  /** Ticks and inline notes per execution-plan step. */
+  readonly progress: readonly StepProgress[];
   readonly results: readonly TodoResult[];
   readonly report?: AchievementReport;
   readonly reflections: readonly ReflectionAnswer[];
@@ -33,6 +36,7 @@ export function emptyWorkspace(settings?: Partial<WorkspaceSettings>): Workspace
     compositions: [],
     todos: [],
     plans: {},
+    progress: [],
     results: [],
     reflections: [],
     settings: {

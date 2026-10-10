@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { formatDeadline, formatMinutes, type Workspace } from "@freenotes/core";
+import { useEffect, useRef, useState } from "react";
+import { formatDeadline, formatMinutes, progressFor, stepWantsWriting, type ExecutionStep, type StepProgress, type Workspace } from "@freenotes/core";
 import type { FreenotesState } from "../lib/use-freenotes.js";
-import { useLocalState } from "../ui/hooks.js";
 import { Icon } from "../ui/Icon.js";
 import { EmptyState } from "../ui/Shell.js";
 import { StatusSheet } from "../ui/StatusSheet.js";
@@ -44,11 +43,20 @@ export function PlanDetail({ state, workspace, id }: { state: FreenotesState; wo
   const todo = workspace.todos.find((t) => t.id === id);
   const plan = workspace.plans[id];
   const result = workspace.results.find((r) => r.todoId === id);
-  const [done, setDone] = useLocalState<Record<number, boolean>>(`freenotes.steps.${id}`, {});
+  const progress = progressFor(workspace.progress, id);
   const [sheet, setSheet] = useState(false);
   if (!todo) return <EmptyState icon="plan" title="Unknown todo" body={`There is no todo ${id}.`} />;
 
-  const complete = plan ? plan.steps.filter((s) => done[s.order]).length : 0;
+  const complete = progress.filter((p) => p.done).length;
+  const save = async (step: number, patch: { done?: boolean; note?: string }) => {
+    if (!state.app) return;
+    try {
+      await state.app.step(id, step, patch);
+      await state.reload();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="stack-lg">
@@ -87,18 +95,10 @@ export function PlanDetail({ state, workspace, id }: { state: FreenotesState; wo
             </div>
             <ol className="steps">
               {plan.steps.map((s) => (
-                <li key={s.order} className={done[s.order] ? "done" : ""} onClick={() => setDone((d) => ({ ...d, [s.order]: !d[s.order] }))}>
-                  <span className="num">{done[s.order] ? <Icon name="check" size={14} strokeWidth={3} /> : s.order}</span>
-                  <div>
-                    <div className="action">
-                      {s.action}
-                      {s.estimatedMinutes ? <span className="muted"> · {formatMinutes(s.estimatedMinutes)}</span> : null}
-                    </div>
-                    {s.detail && <div className="detail">{s.detail}</div>}
-                  </div>
-                </li>
+                <StepRow key={`${id}-${s.order}`} step={s} progress={progress.find((p) => p.step === s.order)} onSave={(patch) => save(s.order, patch)} />
               ))}
             </ol>
+            <p className="muted small" style={{ textAlign: "center" }}>Whatever you write here is kept with the todo and goes into your results.</p>
           </div>
           <div className="card flat">
             <p className="muted small" style={{ fontWeight: 700 }}>Objective</p>
@@ -126,5 +126,78 @@ export function PlanDetail({ state, workspace, id }: { state: FreenotesState; wo
 
       {sheet && <StatusSheet todo={todo} state={state} onClose={() => setSheet(false)} />}
     </div>
+  );
+}
+
+/**
+ * One plan step: tick it, and write its answer right here. Steps whose output is text
+ * (a sentence, a list, a decision) open the writing area by default; others offer it on demand.
+ */
+function StepRow({ step, progress, onSave }: { step: ExecutionStep; progress: StepProgress | undefined; onSave: (patch: { done?: boolean; note?: string }) => Promise<void> }) {
+  const saved = progress?.note ?? "";
+  const done = progress?.done ?? false;
+  const [draft, setDraft] = useState(saved);
+  const [writing, setWriting] = useState(saved !== "" || stepWantsWriting(step));
+  const lastSaved = useRef(saved);
+  const timer = useRef<number | undefined>(undefined);
+  const area = useRef<HTMLTextAreaElement>(null);
+
+  // Adopt a note that changed elsewhere (another device, the CLI) unless the user is mid-edit.
+  useEffect(() => {
+    if (saved !== lastSaved.current && draft === lastSaved.current) setDraft(saved);
+    lastSaved.current = saved;
+  }, [saved, draft]);
+
+  useEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, writing]);
+
+  const commit = (value: string) => {
+    window.clearTimeout(timer.current);
+    if (value.replace(/\s+$/u, "") === lastSaved.current) return;
+    lastSaved.current = value.replace(/\s+$/u, "");
+    void onSave({ note: value });
+  };
+
+  const onChange = (value: string) => {
+    setDraft(value);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => commit(value), 800);
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  return (
+    <li className={done ? "done" : ""}>
+      <button type="button" className="num" aria-label={done ? `Mark step ${step.order} not done` : `Mark step ${step.order} done`} aria-pressed={done} onClick={() => void onSave({ done: !done })}>
+        {done ? <Icon name="check" size={14} strokeWidth={3} /> : step.order}
+      </button>
+      <div className="body">
+        <div className="action" onClick={() => void onSave({ done: !done })}>
+          {step.action}
+          {step.estimatedMinutes ? <span className="muted"> · {formatMinutes(step.estimatedMinutes)}</span> : null}
+        </div>
+        {step.detail && <div className="detail">{step.detail}</div>}
+        {writing ? (
+          <textarea
+            ref={area}
+            className="step-note"
+            rows={1}
+            value={draft}
+            placeholder="Write it here"
+            aria-label={`Notes for step ${step.order}`}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+          />
+        ) : (
+          <button type="button" className="link small" onClick={() => setWriting(true)}>
+            <Icon name="plus" size={13} /> Write something
+          </button>
+        )}
+      </div>
+    </li>
   );
 }

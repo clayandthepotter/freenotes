@@ -104,4 +104,35 @@ T5 blocked on CI
     expect(out.todos[0]).toMatchObject({ estimatedMinutes: 30, estimateSource: "default" });
     expect(out.refinements).toEqual([]);
   });
+
+  it("captures what the executive writes while working a plan and carries it into the results note", async () => {
+    const fn = app();
+    await fn.braindump({ text: "- Finish decision issues Monday ~1h", refine: false });
+    await fn.plan("T1");
+    const plan = (await fn.workspace()).plans["T1"]!;
+    expect(plan.steps.length).toBeGreaterThanOrEqual(2);
+
+    const first = await fn.step("T1", 1, { note: "A one-page decision memo for Priya, by Monday noon." });
+    expect(first.progress).toEqual([expect.objectContaining({ todoId: "T1", step: 1, done: false, note: "A one-page decision memo for Priya, by Monday noon." })]);
+    const ticked = await fn.step("T1", 1, { done: true });
+    expect(ticked.progress[0]).toMatchObject({ done: true, note: "A one-page decision memo for Priya, by Monday noon." });
+
+    await expect(fn.step("T1", 99, { done: true })).rejects.toThrow(/no step 99/);
+    await expect(fn.step("T9", 1, { done: true })).rejects.toThrow(/No todo T9/);
+
+    const recorded = await fn.record("T1: done");
+    expect(recorded.composition.body).toContain("### Written while executing");
+    expect(recorded.composition.body).toContain("A one-page decision memo for Priya, by Monday noon.");
+    expect(recorded.composition.body).toContain(`_${plan.steps[0]!.action}_`);
+
+    const ws = await fn.workspace();
+    expect(ws.progress).toHaveLength(1); // progress survives recording
+  });
+
+  it("omits the written section when nothing was written", async () => {
+    const fn = app();
+    await fn.braindump({ text: "- Call the dentist", refine: false });
+    const recorded = await fn.record("T1: done");
+    expect(recorded.composition.body).not.toContain("Written while executing");
+  });
 });

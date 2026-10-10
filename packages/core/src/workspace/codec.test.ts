@@ -22,6 +22,7 @@ describe("workspace codec", () => {
       compositions: [createComposition("c1", new Date("2026-10-12T08:00:00Z"), { kind: "braindump", title: "Monday dump", body: "- a\n- b", todoIds: ["T1", "T3"] })],
       plans: { T1: { todoId: "T1", objective: "o", definitionOfDone: ["d"], steps: [{ order: 1, action: "x" }], inputs: [], risks: [], firstAction: "f", source: "heuristic" } },
       results: [{ todoId: "T1", status: "done", notes: "ok" }],
+      progress: [{ todoId: "T1", step: 1, done: true, note: "written inline", updatedAt: new Date("2026-10-12T09:30:00Z") }],
       reflections: [{ todoId: "T1", question: "Why?", answer: "Because.", answeredAt: new Date("2026-10-13T10:00:00Z") }],
     };
 
@@ -41,5 +42,11 @@ describe("workspace codec", () => {
 
   it("rejects unknown versions", () => {
     expect(() => deserializeWorkspace({ version: 2 })).toThrow(/Unsupported workspace version/);
+  });
+
+  it("reads snapshots written before step progress existed", () => {
+    const snap = JSON.parse(JSON.stringify(serializeWorkspace(emptyWorkspace()))) as Record<string, unknown>;
+    delete snap["progress"];
+    expect(deserializeWorkspace(snap).progress).toEqual([]);
   });
 });

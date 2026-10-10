@@ -49,6 +49,17 @@ describe("freenotes CLI", () => {
     expect(await runCli(["plan", "t1"], t.cli)).toBe(0);
     expect(t.out()).toContain("## T1 · Finish Q4 budget deck");
 
+    t = io();
+    expect(await runCli(["step", "t1", "1", "A", "deck", "for", "the", "board."], t.cli)).toBe(0);
+    expect(t.out()).toContain("[ ] 1.");
+    expect(t.out()).toContain("A deck for the board.");
+    t = io();
+    expect(await runCli(["step", "T1", "1", "--done"], t.cli)).toBe(0);
+    expect(t.out()).toContain("[x] 1.");
+    t = io();
+    expect(await runCli(["step", "T1", "42", "--done"], t.cli)).toBe(1);
+    expect(t.err()).toContain("no step 42");
+
     t = io("T1: done — shipped\nT2 skipped\nT3 partial, outline done\n");
     expect(await runCli(["report"], t.cli)).toBe(0);
     expect(t.out()).toContain("# Achievement report");

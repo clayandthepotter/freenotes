@@ -35,6 +35,7 @@ Commands
   braindump [file]        Capture a bulleted list of things you must do (reads a file or stdin)
   schedule                Build a time-blocked schedule for everything still open
   plan <T1|all>           Decompose a todo into step-by-step execution parameters
+  step <T1> <n> [text]    Tick step n of a plan (--done / --undone) and/or write its answer inline
   report [file]           Record results (file or stdin) and get an achievement report
   reflect <T1> "<answer>" Answer the reflection question for a completed todo
   todos                   List todos
@@ -62,6 +63,8 @@ Examples
   printf -- "- Finish the deck by Friday ~2h\\n- Call the dentist\\n" | freenotes braindump
   freenotes schedule --days 7
   freenotes plan T1
+  freenotes step T1 1 "A one-page memo for Priya, by Monday noon."
+  freenotes step T1 1 --done
   echo "T1: done — shipped Thursday" | freenotes report
   freenotes reflect T1 "Starting with the hardest slide made the rest easy."
 `;
@@ -80,6 +83,8 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
         profile: { type: "string" },
         title: { type: "string" },
         "no-refine": { type: "boolean" },
+        done: { type: "boolean" },
+        undone: { type: "boolean" },
         days: { type: "string" },
         hours: { type: "string" },
         workdays: { type: "string" },
@@ -141,6 +146,22 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
           io.stdout(renderExecutionPlan(o.plan, todo) + "\n\n");
         }
         io.stdout(`Next: do the work, then \`freenotes report\` with one line per todo (T1: done — …).\n`);
+        return 0;
+      }
+      case "step": {
+        const [todoId, stepArg, ...noteParts] = rest;
+        const note = noteParts.join(" ") || values.text;
+        const step = Number(stepArg);
+        if (!todoId || !Number.isInteger(step) || (!note && !values.done && !values.undone)) {
+          throw new DomainError("usage", 'Usage: freenotes step <T1> <n> ["<what you wrote>"] [--done|--undone]');
+        }
+        const out = await app.step(todoId.toUpperCase(), step, { ...(values.done ? { done: true } : values.undone ? { done: false } : {}), ...(note ? { note } : {}) });
+        const mine = out.progress.filter((p) => p.todoId === todoId.toUpperCase()).sort((a, b) => a.step - b.step);
+        const plan = out.workspace.plans[todoId.toUpperCase()]!;
+        for (const s of plan.steps) {
+          const p = mine.find((x) => x.step === s.order);
+          io.stdout(`${p?.done ? "[x]" : "[ ]"} ${s.order}. ${s.action}${p?.note ? `\n       ${p.note.replace(/\n/g, "\n       ")}` : ""}\n`);
+        }
         return 0;
       }
       case "report": {

@@ -248,8 +248,15 @@ label.field > small { font-weight: 400; color: var(--muted); }
 
 /* plan */
 .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.steps li { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; cursor: pointer; }
-.steps li .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 650; font-size: 12px; background: var(--surface-2); color: var(--text-2); flex: none; }
+.steps li { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+.steps li .num { all: unset; box-sizing: border-box; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 650; font-size: 12px; background: var(--surface-2); color: var(--text-2); flex: none; cursor: pointer; margin-top: 1px; }
+.steps li .body { flex: 1; min-width: 0; }
+.steps li .action { cursor: pointer; }
+.steps li .step-note { display: block; width: 100%; margin-top: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font: inherit; font-size: 15px; line-height: 1.4; color: var(--text); resize: none; overflow: hidden; min-height: 40px; }
+.steps li .step-note:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--tint); }
+.steps li .step-note::placeholder { color: var(--muted); }
+.steps li.done .step-note { opacity: 0.85; }
+.steps li .link { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--accent); font-weight: 600; font-size: 13px; }
 .steps li.done .num { background: var(--ok); color: #fff; }
 .steps li.done .action { text-decoration: line-through; color: var(--muted); }
 .steps li .action { font-weight: 600; }

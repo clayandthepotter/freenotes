@@ -1,3 +1,4 @@
+import type { StepProgress } from "../execution/step-progress.js";
 import type { ExecutionPlan } from "../execution/execution-plan.js";
 import type { Schedule, TimeBlock } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
@@ -108,6 +109,26 @@ export function renderResults(results: readonly TodoResult[], todos: readonly To
   const out = results.map((r) => `- ${mark[r.status]} **${r.todoId}** ${escapeCell(byId.get(r.todoId)?.title ?? "")} — ${r.status}${r.notes ? `: ${r.notes}` : ""}`);
   if (unmatched.length) out.push("", "_Could not match to a todo:_", ...unmatched.map((l) => `> ${l.trim()}`));
   return out.join("\n") || "_No results._";
+}
+
+/** Notes written inline while executing a plan, grouped by todo, in step order. Empty string when nothing was written. */
+export function renderStepNotes(progress: readonly StepProgress[], todos: readonly Todo[], plans: Readonly<Record<TodoId, ExecutionPlan>>, onlyTodoIds?: readonly TodoId[]): string {
+  const byId = new Map(todos.map((t) => [t.id, t] as const));
+  const wanted = onlyTodoIds ? new Set(onlyTodoIds) : undefined;
+  const annotated = progress.filter((p) => p.note.trim() && (!wanted || wanted.has(p.todoId)));
+  if (annotated.length === 0) return "";
+  const groups = new Map<TodoId, StepProgress[]>();
+  for (const p of annotated) groups.set(p.todoId, [...(groups.get(p.todoId) ?? []), p]);
+  const out: string[] = [];
+  for (const [todoId, items] of groups) {
+    out.push(`**${todoId}** ${escapeCell(byId.get(todoId)?.title ?? "")}`);
+    for (const p of [...items].sort((a, b) => a.step - b.step)) {
+      const action = plans[todoId]?.steps.find((s) => s.order === p.step)?.action;
+      out.push(`${p.step}. ${action ? `_${escapeCell(action)}_ ` : ""}${p.note.trim().replace(/\n/g, "\n   ")}`);
+    }
+    out.push("");
+  }
+  return out.join("\n").trimEnd();
 }
 
 export function renderAchievementReport(report: AchievementReport, todos: readonly Todo[], answers: readonly ReflectionAnswer[] = []): string {

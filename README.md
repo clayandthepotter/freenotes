@@ -29,8 +29,8 @@ braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution pl
    ```
    The chief of staff estimates effort and sets priority where you did not. It never overrides what you typed.
 2. **Schedule.** Deadline items are placed earliest-deadline-first; undated items are fitted into the remaining gaps by priority. Long items are split into focus blocks with breaks. Deadlines that cannot be met are flagged, not hidden.
-3. **Plan.** Each todo is decomposed into execution parameters: objective, the literal first action, ordered steps with estimates, a definition of done, inputs to have at hand, and risks.
-4. **Report.** You write a results composition (`T1: done — shipped Thursday`, `T2 partial …`, `T3 blocked on …`). The chief of staff composes an achievement report: achievements ordered by significance, areas to improve grounded in the evidence, and **one reflection question per completed todo**.
+3. **Plan.** Each todo is decomposed into execution parameters: objective, the literal first action, ordered steps with estimates, a definition of done, inputs to have at hand, and risks. You work the plan inside the app: tick steps off, and when a step asks for a sentence, a list or a decision, write it right there. Nothing has to be written down somewhere else.
+4. **Report.** You write a results composition (`T1: done — shipped Thursday`, `T2 partial …`, `T3 blocked on …`), or tap an outcome on the todo. Whatever you wrote while executing is attached to the results note automatically. The chief of staff composes an achievement report: achievements ordered by significance, areas to improve grounded in the evidence, and **one reflection question per completed todo**.
 5. **Reflect.** Answer the questions; the answers are kept with the report.
 
 Every artefact is a *composition* (a note), so you can read and search the whole history like any other note.
@@ -54,6 +54,8 @@ alias freenotes="node $PWD/apps/cli/dist/bin.js"
 printf -- "- Finish the deck by Friday ~2h\n- Call the dentist\n" | freenotes braindump
 freenotes schedule --days 7 --hours 09:00-17:00 --workdays mon-fri
 freenotes plan all
+freenotes step T1 1 "A one-page memo for Priya, by Monday noon."   # write a step's answer inline
+freenotes step T1 1 --done
 echo "T1: done — shipped Thursday. T2 partial, left a voicemail" | freenotes report
 freenotes reflect T1 "Starting with the hardest slide made the rest easy."
 freenotes notes            # list compositions

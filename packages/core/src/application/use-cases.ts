@@ -1,11 +1,12 @@
 import { createComposition, type Composition } from "../composition/composition.js";
 import { validateExecutionPlan, type ExecutionPlan } from "../execution/execution-plan.js";
+import { updateStepProgress, type StepProgress, type StepProgressPatch } from "../execution/step-progress.js";
 import { parseBraindump } from "../planning/braindump.js";
 import { buildSchedule, type ScheduleRequest } from "../planning/scheduler.js";
 import type { Schedule } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
 import type { AssistantContext, ChiefOfStaff, TodoRefinement } from "../ports/chief-of-staff.js";
-import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderTodos } from "../render/markdown.js";
+import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderStepNotes, renderTodos } from "../render/markdown.js";
 import { validateAchievementReport, type AchievementReport, type ReflectionAnswer } from "../review/achievement-report.js";
 import { parseResultReport, type TodoResult } from "../review/result-report.js";
 import type { Clock } from "../shared/clock.js";
@@ -155,6 +156,18 @@ export async function planExecution(workspace: Workspace, todoId: TodoId, deps: 
 }
 
 // ---------------------------------------------------------------------------------------------
+// 3b. Work a plan: tick steps and write inline
+
+export function recordStepProgress(workspace: Workspace, patch: StepProgressPatch, deps: Pick<UseCaseDeps, "clock">): { workspace: Workspace; progress: readonly StepProgress[] } {
+  const plan = workspace.plans[patch.todoId];
+  if (!findTodo(workspace, patch.todoId)) throw new DomainError("unknown-todo", `No todo ${patch.todoId}`);
+  if (!plan) throw new DomainError("no-plan", `${patch.todoId} has no execution plan yet.`);
+  if (!Number.isInteger(patch.step) || patch.step < 1 || patch.step > plan.steps.length) throw new DomainError("unknown-step", `${patch.todoId} has no step ${patch.step}.`);
+  const progress = updateStepProgress(workspace.progress, patch, deps.clock.now());
+  return { workspace: { ...workspace, progress }, progress };
+}
+
+// ---------------------------------------------------------------------------------------------
 // 4. Record results
 
 export interface RecordResultsOutput {
@@ -169,10 +182,11 @@ export function recordResults(workspace: Workspace, text: string, deps: Pick<Use
   if (parsed.results.length === 0) throw new DomainError("no-results", "No results matched your todos. Reference them by code, e.g. \"T1: done — shipped it\".");
   const merged = new Map(workspace.results.map((r) => [r.todoId, r] as const));
   for (const r of parsed.results) merged.set(r.todoId, r);
+  const stepNotes = renderStepNotes(workspace.progress, workspace.todos, workspace.plans, parsed.results.map((r) => r.todoId));
   const composition = createComposition(deps.ids.next(), deps.clock.now(), {
     kind: "results",
     title: `Results · ${LocalDate.fromDate(deps.clock.now())}`,
-    body: `${text.trim()}\n\n---\n\n${renderResults(parsed.results, workspace.todos, parsed.unmatchedLines)}`,
+    body: `${text.trim()}\n\n---\n\n${renderResults(parsed.results, workspace.todos, parsed.unmatchedLines)}${stepNotes ? `\n\n### Written while executing\n\n${stepNotes}` : ""}`,
     todoIds: parsed.results.map((r) => r.todoId),
   });
   return {

@@ -30,6 +30,8 @@ export interface WorkspaceSnapshot {
     warnings: Array<Record<string, unknown>>;
   };
   plans: Record<string, unknown>;
+  /** Optional for snapshots written before step progress existed. */
+  progress?: Array<{ todoId: string; step: number; done: boolean; note: string; updatedAt: string }>;
   results: unknown[];
   report?: unknown;
   reflections: Array<{ todoId: string; question: string; answer: string; answeredAt: string }>;
@@ -72,6 +74,7 @@ export function serializeWorkspace(ws: Workspace): WorkspaceSnapshot {
     todos: ws.todos.map(serializeTodo),
     ...(ws.schedule ? { schedule: serializeSchedule(ws.schedule) } : {}),
     plans: { ...ws.plans },
+    progress: ws.progress.map((p) => ({ ...p, updatedAt: p.updatedAt.toISOString() })),
     results: [...ws.results],
     ...(ws.report ? { report: ws.report } : {}),
     reflections: ws.reflections.map((r) => ({ ...r, answeredAt: r.answeredAt.toISOString() })),
@@ -95,6 +98,7 @@ export function deserializeWorkspace(raw: unknown): Workspace {
     })),
     todos,
     plans: snap.plans as Workspace["plans"],
+    progress: (snap.progress ?? []).map((p) => ({ todoId: p.todoId, step: p.step, done: p.done, note: p.note, updatedAt: new Date(p.updatedAt) })),
     results: snap.results as Workspace["results"],
     reflections: snap.reflections.map((r) => ({ todoId: r.todoId, question: r.question, answer: r.answer, answeredAt: new Date(r.answeredAt) })),
     settings: {
