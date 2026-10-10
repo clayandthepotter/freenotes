@@ -13,8 +13,7 @@
     "dev": "node --watch --experimental-strip-types src/main.ts"
   },
   "dependencies": {
-    "@freenotes/ai-anthropic": "workspace:*",
-    "@freenotes/ai-http": "workspace:*",
+    "@freenotes/api": "workspace:*",
     "@freenotes/core": "workspace:*",
     "@hono/node-server": "^2.1.4",
     "hono": "^4.13.13"

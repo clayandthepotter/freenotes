@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createTodo, HeuristicChiefOfStaff } from "@freenotes/core";
 import { refineCodec, ROUTES } from "@freenotes/ai-http";
-import { createApp } from "./app.js";
+import { createApi } from "./api.js";
 import { LocalDate } from "@freenotes/core";
 
-const app = createApp({ chiefOfStaff: new HeuristicChiefOfStaff() });
+const app = createApi({ chiefOfStaff: new HeuristicChiefOfStaff() });
 
-describe("server app", () => {
+describe("chief-of-staff API", () => {
   it("answers status and health", async () => {
     expect(await (await app.request(ROUTES.status)).json()).toEqual({ available: true, name: "heuristic" });
     expect((await app.request("/api/health")).status).toBe(200);
@@ -23,5 +23,15 @@ describe("server app", () => {
   it("returns 400 on malformed JSON", async () => {
     const res = await app.request(ROUTES.plan, { method: "POST", body: "{nope", headers: { "content-type": "application/json" } });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("chiefOfStaffFromEnv", () => {
+  it("falls back to heuristic without credentials and picks Claude with them", async () => {
+    const { chiefOfStaffFromEnv } = await import("./env.js");
+    expect(chiefOfStaffFromEnv({}).name).toBe("heuristic");
+    expect(chiefOfStaffFromEnv({ FREENOTES_AI: "heuristic", ANTHROPIC_API_KEY: "k" }).name).toBe("heuristic");
+    expect(chiefOfStaffFromEnv({ ANTHROPIC_API_KEY: "k" }).name).toBe("claude (claude-opus-5-5)");
+    expect(chiefOfStaffFromEnv({ ANTHROPIC_API_KEY: "k", FREENOTES_MODEL: "claude-sonnet-5-5" }).name).toBe("claude (claude-sonnet-5-5)");
   });
 });

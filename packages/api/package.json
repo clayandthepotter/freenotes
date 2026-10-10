@@ -1,0 +1,21 @@
+{
+  "name": "@freenotes/api",
+  "version": "0.1.0",
+  "description": "Hono API for the freenotes chief of staff. Runs on Node, Vercel Functions, or any Web-standard runtime.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@freenotes/ai-anthropic": "workspace:*",
+    "@freenotes/ai-http": "workspace:*",
+    "@freenotes/core": "workspace:*",
+    "hono": "^4.13.13"
+  }
+}

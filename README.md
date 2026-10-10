@@ -67,6 +67,16 @@ For development with hot reload run the server as above and, in another terminal
 
 The web app stores your workspace in the browser (export/import as JSON from Settings). Only chief-of-staff requests leave the device, and they go to *your* server, so the API key never reaches the browser.
 
+### Deploy to Vercel
+
+The web app and its API deploy as one Vercel project: the Vite build is served statically and `apps/web/api` runs the Hono API as a Vercel Function.
+
+1. Import the repository in Vercel and set **Root Directory** to `apps/web` (`apps/web/vercel.json` supplies the build command).
+2. Add `ANTHROPIC_API_KEY` in the project's environment variables; without it the deployment serves the heuristic chief of staff.
+3. Optional: `FREENOTES_MODEL`, `FREENOTES_EFFORT`, `FREENOTES_FALLBACKS`.
+
+Any Node host works too: `pnpm build && pnpm --filter @freenotes/server start`.
+
 ### Using Claude
 
 | Variable | Meaning | Default |
@@ -101,7 +111,7 @@ A pnpm monorepo organised around a domain model; see [`docs/architecture.md`](do
 pnpm test          # vitest, all packages (TZ=UTC for deterministic dates)
 pnpm typecheck     # strict TypeScript everywhere
 pnpm build
-pnpm verify        # typecheck + test + build, what GitHub Actions runs
+pnpm verify        # build + typecheck + test, what GitHub Actions runs
 ```
 
 Tests come first: the scheduler, parsers and use cases are specified by their tests, and both chief-of-staff implementations must satisfy the same domain validators. See [CONTRIBUTING.md](CONTRIBUTING.md).
