@@ -34,6 +34,36 @@ freenotes becomes the one place an executive looks. Everything that competes for
 - **Suggestions** are produced by the attention context from missing setup (no calendar connected, no name, no brief time) and ranked with everything else.
 - **Settings** adopt the grouped-card structure. The provider and key screen we already have becomes the Intelligence group.
 
+## What we take from the reference (batch 3: intelligence and autopilot)
+
+- **Two engines, explained in one sentence.** A reasoning engine (cloud or on-device) runs delegations, drafts and summaries; a private-data model runs on-device only and anonymises sensitive content before the cloud ever sees it, then decodes the response back. Provider chips: Auto, On-device, Claude, OpenAI, with a quick-start card per provider (key, model picker, "Save & use").
+- **Device-aware model catalogue.** Each on-device model lists download size, RAM, context, and an honest red box when the device cannot run it, with the arithmetic shown.
+- **Voice** as a separate choice with previews: best available, cloud TTS, on-device pack, system voice.
+- **Autopilot policies.** Named automations, each with an Off / Ask / Auto segmented control, a plain-language description of exactly when it fires and what it will not do, and a trust line: "execute with approval, will move to Auto once trust is at least 75%". Examples: auto-archive newsletters, receipts and calendar notices; auto-reply to a bare thanks; chase stale commitments (nudges only, at most once every two days); weekly update draft on Friday at 4pm; morning-of commitment reminder; autonomously move meetings when the proposed time is unambiguous, at least 12 hours out, conflict-free and 1:1, with the apology reply still waiting for a tap.
+- **Autopilot activity**: every action taken, with undo. **Prediction accuracy**: the assistant grades its own wagers once meetings, decisions and deadlines close.
+- **Knowledge**: search across facts, documents and a graph of people, projects, meetings and commitments; memory the user can forget; uploaded reference documents; an Obsidian vault hand-off.
+- **Scheduled jobs** run while the phone sleeps through a relay (hosted or a custom self-hosted URL), with identifiers replaced by placeholders before upload and anything that acts on the world coming back as a draft for approval.
+- **Budget and expenses**: envelopes, a transaction log, trends, spend alerts, "I spent X on Y" captured through the assistant.
+
+## What we take from the reference (batch 4: calendar, communications, privacy)
+
+- **Calendar ownership is a choice**: "this app is my calendar" (pull once, the app is the source of truth) or "two-way sync" (new events also write back to one chosen calendar). Import still picks per calendar across every device account (Google, iCloud, Exchange, Yahoo), each shown with its colour and provider.
+- **Availability**: work hours as chips, buffer before and after meetings, exclude weekends, prefer morning slots. Slots are only ever offered inside the window.
+- **Notifications**: morning brief at a chosen time, event reminders, a mid-day pulse when the afternoon needs attention, task-completion alerts, an optional launch cue.
+- **Communications**: a Google account connection that unlocks Docs linking and Meet transcripts; an email account "to send meeting invites from your address"; a video meeting link; a notes vault hand-off.
+- **Privacy and data**: biometric sign-in, memory encrypted on device, an export/import sync bundle encrypted with the user seed, a password-protected AES-256-GCM backup that merges on restore, per-feature toggles (email context in briefs, usage stats, crash reports) and "redact identifiers before cloud AI" with high-risk patterns (cards, SSNs, tokens) always redacted regardless.
+
+### How this lands in freenotes
+
+- **An `autopilot` context** in the domain: `Automation` (id, name, policy off|ask|auto, guard conditions as data, trust score), `ProposedAction` (what, why, evidence, reversible), `ActionLog` entries carrying an inverse action for undo. Guards are evaluated deterministically; the model only proposes. Trust is the ratio of approved to proposed over a window, and crossing the threshold flips the policy only if the user allowed that.
+- **A `prediction` ledger**: the chief of staff states a confidence when it estimates effort, flags a deadline at risk or predicts a meeting outcome; the review context grades it when the item closes. This also sharpens the achievement report.
+- **Two engines in our terms.** The heuristic assistant already is the on-device engine. The private-data step becomes a `Redactor` port in front of every cloud call: deterministic, reversible redaction of emails, phone numbers, card and ID patterns and tokens (always) plus names and amounts (opt-in). A small in-browser model can sit behind the same port later.
+- **Calendar ownership** maps to a `CalendarPolicy` on each connected calendar: `import-only` or `two-way`, with at most one write-back target. Our scheduler already consumes busy ranges; availability (work hours, buffers, weekends, morning preference) extends `WorkingHours` in the planning context.
+- **Knowledge** reuses compositions: memory facts and uploaded documents are compositions of new kinds; the graph is derived from references between todos, people, events and compositions, not stored separately.
+- **Privacy** reuses the existing sealed-secret machinery for a password-protected export and keeps every outbound-data feature as an explicit, default-off toggle in `UserSettings`.
+- **Scheduled jobs** are server cron on the hosted API (Vercel cron) running sync, the morning brief and the Friday draft under each user's stored policies; a self-hosted API is the "custom relay".
+- **Budget** is out of scope for the next milestones; the composition model can absorb it later as an `expense` kind.
+
 ## Principles
 
 1. **Never leave the app.** Reading, replying, scheduling, delegating and logging happen inside freenotes. External tools are sources and sinks, not destinations.
@@ -51,6 +81,8 @@ freenotes becomes the one place an executive looks. Everything that competes for
 | **inbox** | `InboxItem` (kind: mail thread, invite, issue, mention, commitment; account; state: new, needs reply, waiting on, snoozed, done), triage rules, snooze | A commitment found in mail becomes a Todo via the planning context, with a back-reference. |
 | **people** | `Person` (identities across accounts, cadence, last touch), relationship signals from events and threads | Derived from recurring 1:1s and small meetings only; large events never create people. |
 | **attention** | The scoring that feeds the brief, the "what matters right now" sheet, badges and notifications | Pure function over the workspace; one implementation, tested. |
+| **profile** | Working style, goals, boundaries, memory facts, client/project tags | Facts carry provenance; nothing is remembered without the user confirming. |
+| **autopilot** | Automations with Off/Ask/Auto policies, guards, trust, the action log with undo, the prediction ledger | Guards are deterministic; the model proposes, policy decides; every action is reversible or asks first. |
 
 The existing planning, execution, review and composition contexts stay. Today's `Capture` becomes the plus button inside Actions, and the Plan and Review screens fold into Actions and the Brief.
 
