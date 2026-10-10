@@ -3,7 +3,7 @@ import { Icon, Logo } from "./Icon.js";
 import type { Route, Tab } from "./router.js";
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: "today", label: "Today", icon: "home" },
+  { id: "today", label: "Brief", icon: "home" },
   { id: "capture", label: "Capture", icon: "capture" },
   { id: "plan", label: "Plan", icon: "plan" },
   { id: "review", label: "Review", icon: "review" },
@@ -29,7 +29,7 @@ export function TabBar({ route, navigate, counts }: { route: Route; navigate: (r
   );
 }
 
-export function TopBar({ title, subtitle, onBack, right }: { title: string; subtitle?: string; onBack?: () => void; right?: ReactNode }) {
+export function TopBar({ title, subtitle, onBack, right, variant = "default" }: { title: string; subtitle?: string; onBack?: () => void; right?: ReactNode; variant?: "default" | "brief" }) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -37,7 +37,7 @@ export function TopBar({ title, subtitle, onBack, right }: { title: string; subt
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   return (
-    <header className={`topbar ${scrolled ? "scrolled" : ""}`}>
+    <header className={`topbar ${variant} ${scrolled ? "scrolled" : ""}`}>
       {onBack ? (
         <button className="icon-btn" onClick={onBack} aria-label="Back">
           <Icon name="back" />

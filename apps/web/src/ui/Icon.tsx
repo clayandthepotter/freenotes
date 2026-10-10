@@ -20,9 +20,11 @@ const PATHS: Record<string, string> = {
   more: "M12 5h.01M12 12h.01M12 19h.01",
   list: "M4 6h16M4 12h16M4 18h10",
   flag: "M4 22V4a1 1 0 0 1 1-1h10l1 2h4v10h-6l-1-2H4",
+  plus: "M12 5v14M5 12h14",
+  arrow: "M5 12h14M13 6l6 6-6 6",
 };
 
-export function Icon({ name, size = 22, strokeWidth = 2 }: { name: keyof typeof PATHS | string; size?: number; strokeWidth?: number }) {
+export function Icon({ name, size = 22, strokeWidth = 1.7 }: { name: keyof typeof PATHS | string; size?: number; strokeWidth?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={PATHS[name] ?? ""} />
@@ -33,9 +35,15 @@ export function Icon({ name, size = 22, strokeWidth = 2 }: { name: keyof typeof 
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <rect width="512" height="512" rx="112" fill="#4f46e5" />
-      <path d="M152 168h208M152 256h152M152 344h96" stroke="#fff" strokeWidth="40" strokeLinecap="round" />
-      <circle cx="356" cy="344" r="40" fill="#c7d2fe" />
+      <defs>
+        <linearGradient id="fn-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#8f7dff" />
+          <stop offset="1" stopColor="#5b4be0" />
+        </linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="116" fill="#0f0e1f" />
+      <circle cx="256" cy="256" r="150" fill="none" stroke="url(#fn-g)" strokeWidth="22" />
+      <circle cx="256" cy="256" r="78" fill="url(#fn-g)" />
     </svg>
   );
 }

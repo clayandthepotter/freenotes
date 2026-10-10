@@ -11,9 +11,9 @@ braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution pl
 ```
 
 <p align="center">
-  <img src="docs/screenshots/today.png" width="180" alt="Today: the time-blocked schedule" />
+  <img src="docs/screenshots/today.png" width="180" alt="The brief: greeting, week and time-blocked schedule" />
+  <img src="docs/screenshots/attention.png" width="180" alt="What needs my attention right now" />
   <img src="docs/screenshots/plan.png" width="180" alt="A todo decomposed into steps" />
-  <img src="docs/screenshots/outcome.png" width="180" alt="Recording an outcome" />
   <img src="docs/screenshots/review.png" width="180" alt="The achievement report" />
 </p>
 

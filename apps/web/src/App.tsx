@@ -7,7 +7,8 @@ import { NoteDetail, NotesList } from "./screens/Notes.js";
 import { PlanDetail, PlanList } from "./screens/Plan.js";
 import { Review } from "./screens/Review.js";
 import { Settings } from "./screens/Settings.js";
-import { Today } from "./screens/Today.js";
+import { Brief } from "./screens/Today.js";
+import { nameFromEmail } from "./lib/brief.js";
 import { Icon } from "./ui/Icon.js";
 import { useRoute } from "./ui/router.js";
 import { TabBar, TopBar } from "./ui/Shell.js";
@@ -22,14 +23,15 @@ export function App() {
     window.scrollTo({ top: 0 });
   }, [route.tab, route.id]);
 
+  const name = nameFromEmail(session.session?.user.email);
   const settingsButton = (
-    <button className={`icon-btn ${state.assistant?.online ? "badge" : ""}`} onClick={() => navigate({ tab: "settings" })} aria-label="Settings">
-      <Icon name="settings" />
+    <button className="icon-btn" onClick={() => navigate({ tab: "settings" })} aria-label="Settings">
+      {name ? <span className="avatar">{name.charAt(0)}</span> : <Icon name="settings" />}
       {state.assistant?.online && <span className="dot" />}
     </button>
   );
 
-  let title = "Today";
+  let title = "Brief";
   let subtitle: string | undefined = formatDay(new Date());
   let onBack: (() => void) | undefined;
   let body: React.ReactNode = null;
@@ -43,7 +45,7 @@ export function App() {
   } else {
     switch (route.tab) {
       case "today":
-        body = <Today state={state} workspace={ws} navigate={navigate} />;
+        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} />;
         break;
       case "capture":
         title = "Capture";
@@ -92,7 +94,7 @@ export function App() {
     <div className="app">
       <TabBar route={route} navigate={navigate} counts={{}} />
       <div className="main">
-        <TopBar title={title} {...(subtitle ? { subtitle } : {})} {...(onBack ? { onBack } : {})} right={route.tab === "settings" ? undefined : settingsButton} />
+        <TopBar title={title} {...(subtitle ? { subtitle } : {})} {...(onBack ? { onBack } : {})} right={route.tab === "settings" ? undefined : settingsButton} variant={route.tab === "today" ? "brief" : "default"} />
         <main className="content stack">
           {state.busy && (
             <div className="banner busy">

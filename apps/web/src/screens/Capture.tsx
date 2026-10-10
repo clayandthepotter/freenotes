@@ -45,7 +45,7 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
       <div className="stack">
         <textarea
           ref={area}
-          className="mono-input"
+          className="composer"
           rows={8}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -65,7 +65,10 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
         </label>
         <div className="sticky-action">
           <button className="btn primary block" disabled={!text.trim() || !!state.busy || !state.app} onClick={capture}>
-            Capture {text.split("\n").filter((l) => l.trim()).length || ""} {text.trim() ? "items" : ""}
+            {(() => {
+              const n = text.split("\n").filter((l) => l.trim()).length;
+              return n ? `Capture ${n} item${n === 1 ? "" : "s"}` : "Capture";
+            })()}
           </button>
         </div>
       </div>
