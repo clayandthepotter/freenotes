@@ -363,3 +363,8 @@ label.field > small { font-weight: 400; color: var(--muted); }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--tint); } 50% { box-shadow: 0 0 0 8px var(--tint); } }
 .settings-group { display: flex; flex-direction: column; gap: 10px; }
 .settings-group > .caption { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 4px 2px 0; }
+.upnext.people { background: var(--surface); border: 1px solid var(--line); }
+.upnext.people .k { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--accent); flex: none; }
+.attn.person .k { background: var(--surface-2); color: var(--text-2); font-weight: 700; }
+.attn.person.cold .k { background: var(--danger-soft); color: var(--danger); }
+.attn.cold .k { background: var(--danger-soft); color: var(--danger); }

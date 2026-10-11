@@ -51,7 +51,7 @@ export function App() {
   } else {
     switch (route.tab) {
       case "today":
-        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} />;
+        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} selfEmail={session.session?.user.email} />;
         break;
       case "capture":
         title = "Capture";

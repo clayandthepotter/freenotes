@@ -106,6 +106,10 @@ freenotes calendar sync
 freenotes calendar          # list
 ```
 
+### People
+
+From the same calendars, freenotes reads who you actually meet (meetings of up to six people), how often, when you last and next see them, and flags anyone going cold with nothing scheduled. It shows on the brief and in "What needs my attention". Nothing is stored.
+
 ### Issues from Linear
 
 Connect Linear with a personal API key (Settings → Security & access) and pull the issues assigned to you: each becomes a todo with its due date, estimate (points become hours) and priority, linked back to the issue. Pull again any time; issues you complete or cancel in Linear close their todos here. Nothing is written to Linear. Signed in, the key is stored encrypted on the server; otherwise it stays in the browser.

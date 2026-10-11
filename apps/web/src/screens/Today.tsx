@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type TimeBlock, type Todo, type Workspace } from "@freenotes/core";
-import { attention, greeting, summaryLine, type AttentionItem } from "../lib/brief.js";
+import { attention, greeting, people as derive, summaryLine, type AttentionItem } from "../lib/brief.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
 import { Icon } from "../ui/Icon.js";
 import { Sheet } from "../ui/Shell.js";
@@ -9,12 +9,15 @@ import type { Route } from "../ui/router.js";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function Brief({ state, workspace, navigate, name, signedIn, canSignIn }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined; signedIn: boolean; canSignIn: boolean }) {
+export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, selfEmail }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined; signedIn: boolean; canSignIn: boolean; selfEmail?: string | undefined }) {
   const now = new Date();
   const todayKey = LocalDate.fromDate(now).toString();
   const [dayKey, setDayKey] = useState(todayKey);
   const [picked, setPicked] = useState<Todo>();
   const [attn, setAttn] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const people = useMemo(() => derive(workspace, now, selfEmail), [workspace, selfEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cold = people.filter((p) => p.status === "cold");
   const schedule = workspace.schedule;
   const todoById = useMemo(() => new Map(workspace.todos.map((t) => [t.id, t] as const)), [workspace.todos]);
   const statusOf = (id: string) => workspace.results.find((r) => r.todoId === id)?.status;
@@ -221,6 +224,45 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn }:
           </div>
         </>
       )}
+
+      {people.length > 0 && (
+        <div className="upnext people" onClick={() => setPeopleOpen(true)} role="button">
+          <span className="k">
+            <Icon name="user" size={18} />
+          </span>
+          <div className="grow">
+            <div className="t">
+              {people.length} {people.length === 1 ? "person" : "people"} you meet
+            </div>
+            <div className="s">{cold.length === 0 ? "No one going cold." : `${cold.length} going cold: ${cold.slice(0, 2).map((p) => p.name).join(", ")}${cold.length > 2 ? "…" : ""}`}</div>
+          </div>
+          <Icon name="chevron" size={18} />
+        </div>
+      )}
+
+      <Sheet open={peopleOpen} onClose={() => setPeopleOpen(false)} title="People">
+        <p className="muted small" style={{ marginBottom: 8 }}>Read from your calendars: meetings with up to six people. Nothing is stored.</p>
+        {people.map((p) => {
+          const days = p.lastSeen ? Math.round((now.getTime() - p.lastSeen.getTime()) / 86_400_000) : undefined;
+          return (
+            <div key={p.name} className={`attn person ${p.status}`}>
+              <span className="k">{p.name.charAt(0).toUpperCase()}</span>
+              <div className="grow">
+                <div className="row between">
+                  <span className="t">{p.name}</span>
+                  {p.status === "cold" && <span className="pill blocked">going cold</span>}
+                </div>
+                <div className="muted small">
+                  {p.meetings} meeting{p.meetings === 1 ? "" : "s"}
+                  {p.cadenceDays ? ` · every ${p.cadenceDays} days` : ""}
+                  {days !== undefined ? ` · last ${days === 0 ? "today" : `${days}d ago`}` : ""}
+                  {p.nextSeen ? ` · next ${formatDay(p.nextSeen)}` : " · nothing scheduled"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </Sheet>
 
       <Sheet open={attn} onClose={() => setAttn(false)} title="Right now">
         {items.length === 0 ? (

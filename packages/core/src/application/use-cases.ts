@@ -292,9 +292,9 @@ export function removeCalendar(workspace: Workspace, calendarId: string): Worksp
   };
 }
 
-/** The window freenotes keeps events for: yesterday through the scheduling horizon plus a week. */
+/** The window freenotes keeps events for: sixty days back (so relationships can be read) through the scheduling horizon plus a week. */
 export function calendarWindow(workspace: Workspace, now: Date): TimeRange {
-  const start = LocalDate.fromDate(now).addDays(-1).at(LocalTime0);
+  const start = LocalDate.fromDate(now).addDays(-60).at(LocalTime0);
   const end = LocalDate.fromDate(now).addDays(workspace.settings.policy.horizonDays + 7).at(LocalTime0);
   return TimeRange.of(start, end);
 }

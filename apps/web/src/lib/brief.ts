@@ -1,4 +1,4 @@
-import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type StyleDimension, type Workspace } from "@freenotes/core";
+import { derivePeople, eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type Person, type StyleDimension, type Workspace } from "@freenotes/core";
 
 /** "Good morning, Clay." — the name is optional and already trimmed by the caller. */
 export function greeting(now: Date, name?: string): string {
@@ -68,7 +68,13 @@ export function summaryLine(ws: Workspace, now: Date): string {
   return `${blocksText}${meetingsText} today, ${formatMinutes(s.minutesToday)} planned.${light ? ` ${light}` : ""}${risk}`;
 }
 
-export type AttentionKind = "now" | "meeting" | "next" | "overdue" | "risk" | "unrecorded" | "unplanned" | "review" | "capture";
+export type AttentionKind = "now" | "meeting" | "next" | "overdue" | "risk" | "unrecorded" | "unplanned" | "review" | "cold" | "capture";
+
+/** Who the executive meets, from the calendar. The executive's own name and address are left out when known. */
+export function people(ws: Workspace, now: Date, selfEmail?: string): Person[] {
+  const self = [ws.profile.name, selfEmail].filter((x): x is string => Boolean(x));
+  return derivePeople(ws.calendar.events, now, { self });
+}
 
 export interface AttentionItem {
   readonly kind: AttentionKind;
@@ -85,7 +91,7 @@ const LEADS: Record<StyleDimension, readonly AttentionKind[]> = {
   triage: ["now", "meeting", "overdue", "risk", "next"],
   capture: ["now", "meeting", "unrecorded", "unplanned", "capture"],
   improve: ["now", "meeting", "review", "unrecorded"],
-  align: ["now", "meeting", "risk", "next"],
+  align: ["now", "meeting", "cold", "risk", "next"],
 };
 
 /**
@@ -139,6 +145,10 @@ function rawAttention(ws: Workspace, now: Date): AttentionItem[] {
   if (unplanned.length > 0) items.push({ kind: "unplanned", title: `${unplanned.length} todo${unplanned.length === 1 ? "" : "s"} without a plan`, detail: "A first action and steps make starting cheap. Plan them now.", ...(unplanned.length === 1 ? { todoId: unplanned[0]!.id } : {}) });
 
   if (ws.results.length > 0 && !ws.report) items.push({ kind: "review", title: "Outcomes recorded, no report yet", detail: "Compose the achievement report to see what to improve and answer reflections." });
+  for (const p of people(ws, now).filter((x) => x.status === "cold").slice(0, 2)) {
+    const days = p.lastSeen ? Math.round((now.getTime() - p.lastSeen.getTime()) / 86_400_000) : undefined;
+    items.push({ kind: "cold", title: `${p.name} is going cold`, detail: `${days !== undefined ? `Last met ${days} days ago` : "Not met recently"}${p.cadenceDays ? `, usually every ${p.cadenceDays}` : ""}; nothing scheduled. Reach out or book the next one.` });
+  }
   if (ws.todos.length === 0) items.push({ kind: "capture", title: "Nothing captured", detail: "Braindump what you must do; the schedule and plans follow." });
   else if (ws.todos.every((x) => closed(x.id))) items.push({ kind: "capture", title: "All clear", detail: "Everything is done or skipped. Capture what's next." });
 

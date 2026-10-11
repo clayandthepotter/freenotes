@@ -20,6 +20,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 | **Profile** | Who the executive is: name, working style (from the eight-question quiz), goals the work should serve, boundaries the assistant must respect. Described to the chief of staff with every request. |
 | **Connected calendar** | A calendar the executive linked, today an ICS feed. Its **calendar events** are read, never owned: they appear on the brief and count as busy time for the scheduler. |
 | **External issue** | An issue in a tracker the executive is responsible for (Linear first). Importing mirrors open ones as todos that carry an **external link**; a close in the tracker records a result here. |
+| **Person** | Someone the executive meets, derived from small calendar meetings: how often, last and next time, and whether the relationship is going cold. Never stored. |
 | **Workspace** | Everything one executive has: compositions, todos, schedule, plans, results, report, reflection answers, settings. |
 
 ## Bounded contexts (inside `@freenotes/core`)
@@ -30,6 +31,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 - **profile** — the working-style quiz and its scoring, the `Profile` aggregate and its description for the assistant.
 - **calendar** — connected calendars, the iCalendar reader (recurrence, time zones, overrides), busy-time derivation.
 - **issues** — external issues and the link from a todo back to its issue; the import use case lives in the application layer.
+- **people** — relationship signals read from calendar attendees.
 - **composition** — notes as the user sees them.
 - **workspace** — the aggregate that ties the above together and its JSON codec.
 
