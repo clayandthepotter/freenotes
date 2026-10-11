@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Icon } from "../ui/Icon.js";
+import { useDictation } from "../lib/use-dictation.js";
 import type { Workspace } from "@freenotes/core";
 import type { FreenotesState } from "../lib/use-freenotes.js";
 import { TodoCard } from "../ui/TodoCard.js";
@@ -32,6 +34,11 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
     });
   };
 
+  const dictation = useDictation((phrase) => {
+    setText((t) => `${t.trim() ? `${t.replace(/\s+$/, "")}\n` : ""}- ${phrase}`);
+  });
+  useEffect(() => () => dictation.stop(), [dictation]);
+
   const capture = async () => {
     const out = await state.run("Capturing…", (app) => app.braindump({ text, refine }));
     if (out) {
@@ -52,13 +59,22 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
           placeholder={"One thing per line.\n- Finish Q4 budget deck by Friday ~2h\n- [high] Call the dentist\n- Write launch post due Oct 20"}
           autoCapitalize="sentences"
         />
-        <div className="chips" aria-label="Insert a hint">
-          {HINTS.map(([label, token]) => (
-            <button key={label} className="chip outline" onClick={() => insert(token)}>
-              + {label}
+        <div className="row between" style={{ alignItems: "flex-start" }}>
+          <div className="chips" aria-label="Insert a hint">
+            {HINTS.map(([label, token]) => (
+              <button key={label} className="chip outline" onClick={() => insert(token)}>
+                + {label}
+              </button>
+            ))}
+          </div>
+          {dictation.supported && (
+            <button className={`icon-btn mic ${dictation.listening ? "on" : ""}`} aria-pressed={dictation.listening} aria-label={dictation.listening ? "Stop dictating" : "Dictate"} onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}>
+              <Icon name="mic" size={20} />
             </button>
-          ))}
+          )}
         </div>
+        {dictation.listening && <p className="muted small">Listening. Pause between items; each phrase becomes a line.</p>}
+        {dictation.error && <p className="muted small danger">{dictation.error}</p>}
         <label className="check">
           <input type="checkbox" checked={refine} onChange={(e) => setRefine(e.target.checked)} />
           Let the chief of staff estimate and prioritise

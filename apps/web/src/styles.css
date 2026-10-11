@@ -358,3 +358,8 @@ label.field > small { font-weight: 400; color: var(--muted); }
 .cal-row { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .cal-row .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
 .danger { color: var(--danger); }
+.icon-btn.mic { background: var(--tint); color: var(--accent); flex: none; }
+.icon-btn.mic.on { background: var(--grad); color: #fff; box-shadow: 0 0 0 4px var(--tint); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--tint); } 50% { box-shadow: 0 0 0 8px var(--tint); } }
+.settings-group { display: flex; flex-direction: column; gap: 10px; }
+.settings-group > .caption { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 4px 2px 0; }

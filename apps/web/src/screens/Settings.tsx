@@ -20,58 +20,76 @@ export function Settings({ state, session, workspace, focus }: { state: Freenote
   const signedIn = Boolean(session.session);
   return (
     <div className="settings-section stack-lg">
-      <div className="card stack">
-        <div className="row">
-          <span className="icon-btn" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-            <Icon name={signedIn ? "cloud" : "user"} />
-          </span>
-          <div className="grow">
-            <h3>{signedIn ? (session.session?.user.email ?? "Signed in") : "Not signed in"}</h3>
-            <p className="muted small">{signedIn ? "Workspace and settings sync to your account." : session.available ? "Sign in to sync across devices and use your own model key." : "This deployment runs local-only; everything stays in this browser."}</p>
+      <Group caption="Account">
+        <div className="card stack">
+          <div className="row">
+            <span className="icon-btn" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+              <Icon name={signedIn ? "cloud" : "user"} />
+            </span>
+            <div className="grow">
+              <h3>{signedIn ? (session.session?.user.email ?? "Signed in") : "Not signed in"}</h3>
+              <p className="muted small">{signedIn ? "Workspace and settings sync to your account." : session.available ? "Sign in to sync across devices and use your own model key." : "This deployment runs local-only; everything stays in this browser."}</p>
+            </div>
           </div>
+          {signedIn ? (
+            <button className="btn outline" onClick={() => void session.signOut()}>
+              Sign out
+            </button>
+          ) : session.available ? (
+            <SignInForm session={session} />
+          ) : null}
         </div>
-        {signedIn ? (
-          <button className="btn outline" onClick={() => void session.signOut()}>
-            Sign out
-          </button>
-        ) : session.available ? (
-          <SignInForm session={session} />
-        ) : null}
-      </div>
+      </Group>
 
-      <YouCard state={state} workspace={workspace} />
+      <Group caption="You">
+        <YouCard state={state} workspace={workspace} />
+      </Group>
 
-      {signedIn && state.assistant?.api && <AssistantSettings state={state} session={session} />}
-
-      <CalendarsCard state={state} workspace={workspace} autoFocus={focus === "calendars"} />
-
-      <SchedulePrefs state={state} workspace={workspace} />
-
-      <div className="card stack">
-        <h3>Assistant backend</h3>
-        <label className="field">
-          Where the chief of staff runs
-          <select value={state.mode} onChange={(e) => state.setMode(e.target.value as AssistantMode)}>
-            <option value="auto">Auto (server if available, else offline heuristics)</option>
-            <option value="server">Server only</option>
-            <option value="heuristic">Offline heuristics only</option>
-          </select>
-          <small>Currently: {state.assistant?.label ?? "resolving…"}</small>
-        </label>
-        {state.storage === "local" && (
+      <Group caption="Intelligence">
+        {signedIn && state.assistant?.api && <AssistantSettings state={state} session={session} />}
+        <div className="card stack">
+          <h3>Where the chief of staff runs</h3>
           <label className="field">
-            About you
-            <textarea rows={3} value={state.profile} onChange={(e) => state.setProfile(e.target.value)} placeholder="e.g. Head of product at a 40-person startup. Mornings are for deep work." />
-            <small>Sent with every request so the assistant can tailor estimates, plans and questions.</small>
+            Engine
+            <select value={state.mode} onChange={(e) => state.setMode(e.target.value as AssistantMode)}>
+              <option value="auto">Auto (server if available, else offline heuristics)</option>
+              <option value="server">Server only</option>
+              <option value="heuristic">Offline heuristics only</option>
+            </select>
+            <small>Currently: {state.assistant?.label ?? "resolving…"}</small>
           </label>
-        )}
-      </div>
+          {state.storage === "local" && (
+            <label className="field">
+              About you
+              <textarea rows={3} value={state.profile} onChange={(e) => state.setProfile(e.target.value)} placeholder="e.g. Head of product at a 40-person startup. Mornings are for deep work." />
+              <small>Sent with every request so the assistant can tailor estimates, plans and questions.</small>
+            </label>
+          )}
+        </div>
+      </Group>
 
-      <WorkspaceData state={state} signedIn={signedIn} />
+      <Group caption="Calendar & time">
+        <CalendarsCard state={state} workspace={workspace} autoFocus={focus === "calendars"} />
+        <SchedulePrefs state={state} workspace={workspace} />
+      </Group>
+
+      <Group caption="Privacy & data">
+        <WorkspaceData state={state} signedIn={signedIn} />
+      </Group>
+
       <p className="muted small" style={{ textAlign: "center" }}>
         freenotes is open source · <a href="https://github.com/clayandthepotter/freenotes">GitHub</a>
       </p>
     </div>
+  );
+}
+
+function Group({ caption, children }: { caption: string; children: React.ReactNode }) {
+  return (
+    <section className="settings-group" aria-label={caption}>
+      <div className="caption">{caption}</div>
+      {children}
+    </section>
   );
 }
 

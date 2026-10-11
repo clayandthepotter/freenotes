@@ -21,6 +21,7 @@ const PATHS: Record<string, string> = {
   list: "M4 6h16M4 12h16M4 18h10",
   flag: "M4 22V4a1 1 0 0 1 1-1h10l1 2h4v10h-6l-1-2H4",
   plus: "M12 5v14M5 12h14",
+  mic: "M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM19 11a7 7 0 0 1-14 0M12 18v3M8 21h8",
   arrow: "M5 12h14M13 6l6 6-6 6",
 };
 
