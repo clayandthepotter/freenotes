@@ -78,14 +78,15 @@ function TriageCard({ todo, state, onDone }: { todo: Todo; state: FreenotesState
   const today = useMemo(() => LocalDate.fromDate(new Date()), []);
   const hasDeadline = Boolean(todo.deadline);
   const hasBudget = todo.estimateSource === "explicit";
-  const [due, setDue] = useState<DueChoice>(hasDeadline ? "keep" : "none");
+  const [due, setDue] = useState<DueChoice | undefined>(hasDeadline ? "keep" : undefined);
   const [dueDate, setDueDate] = useState("");
-  const [time, setTime] = useState<TimeChoice>(hasBudget ? "keep" : 60);
+  const [time, setTime] = useState<TimeChoice | undefined>(hasBudget ? "keep" : undefined);
   const [custom, setCustom] = useState("");
   const [priority, setPriority] = useState<Priority>(todo.priority);
 
   const deadlineFor = (): Deadline | null | undefined => {
     switch (due) {
+      case undefined:
       case "keep":
         return undefined;
       case "none":
@@ -108,9 +109,10 @@ function TriageCard({ todo, state, onDone }: { todo: Todo; state: FreenotesState
     const parsed = /^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hours?)$/i.exec(t) ? Math.round(Number(/^(\d+(?:\.\d+)?)/.exec(t)![1]) * 60) : /^(\d+)\s*(m|min|mins|minutes?)?$/i.exec(t) ? Number(/^(\d+)/.exec(t)![1]) : undefined;
     return parsed && parsed > 0 ? parsed : undefined;
   })();
-  const estimateFor = (): number | "assistant" | undefined => (time === "keep" ? undefined : time === "custom" ? customMinutes : time);
-  const ready = (due !== "date" || Boolean(dueDate)) && (time !== "custom" || customMinutes !== undefined);
-  const preview = due === "keep" ? (todo.deadline ? `due ${formatDeadline(todo)}` : "") : due === "none" ? "no deadline, fits a gap" : (() => {
+  const estimateFor = (): number | "assistant" | undefined => (time === undefined || time === "keep" ? undefined : time === "custom" ? customMinutes : time);
+  // Both questions need an answer (or an explicit "keep what I wrote"); nothing is chosen for the executive.
+  const ready = due !== undefined && time !== undefined && (due !== "date" || Boolean(dueDate)) && (time !== "custom" || customMinutes !== undefined);
+  const preview = due === undefined ? "" : due === "keep" ? (todo.deadline ? `due ${formatDeadline(todo)}` : "") : due === "none" ? "no deadline, fits a gap" : (() => {
     const d = deadlineFor();
     return d ? `due ${formatDeadline({ ...todo, deadline: d })}` : "";
   })();
@@ -135,7 +137,7 @@ function TriageCard({ todo, state, onDone }: { todo: Todo; state: FreenotesState
           <p className="muted small">
             From your note: {formatDeadline(todo)}.{" "}
             {due === "keep" ? (
-              <button className="link small" onClick={() => setDue("none")}>
+              <button className="link small" onClick={() => setDue(undefined)}>
                 Change
               </button>
             ) : (
@@ -172,7 +174,7 @@ function TriageCard({ todo, state, onDone }: { todo: Todo; state: FreenotesState
           <p className="muted small">
             From your note: {formatMinutes(todo.estimatedMinutes)}.{" "}
             {time === "keep" ? (
-              <button className="link small" onClick={() => setTime(60)}>
+              <button className="link small" onClick={() => setTime(undefined)}>
                 Change
               </button>
             ) : (
