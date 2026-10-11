@@ -36,15 +36,9 @@ export function Icon({ name, size = 22, strokeWidth = 1.7 }: { name: keyof typeo
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <defs>
-        <linearGradient id="fn-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#8f7dff" />
-          <stop offset="1" stopColor="#5b4be0" />
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="116" fill="#0f0e1f" />
-      <circle cx="256" cy="256" r="150" fill="none" stroke="url(#fn-g)" strokeWidth="22" />
-      <circle cx="256" cy="256" r="78" fill="url(#fn-g)" />
+      <rect width="512" height="512" rx="116" fill="#0f172a" />
+      <path d="M136 176h240M136 256h192M136 336h120" stroke="#ffffff" strokeWidth="36" strokeLinecap="round" fill="none" />
+      <circle cx="356" cy="336" r="40" fill="#3b82f6" />
     </svg>
   );
 }

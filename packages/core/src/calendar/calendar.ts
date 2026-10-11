@@ -37,7 +37,7 @@ export interface CalendarState {
   readonly window?: TimeRange;
 }
 
-export const CALENDAR_PALETTE = ["#6c5ce7", "#00a884", "#e17055", "#0984e3", "#d63384", "#f39c12", "#6b7280"] as const;
+export const CALENDAR_PALETTE = ["#1d4ed8", "#0e7490", "#475569", "#2563eb", "#0f172a", "#64748b", "#7c3aed"] as const;
 
 export function emptyCalendarState(): CalendarState {
   return { calendars: [], events: [] };

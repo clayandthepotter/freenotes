@@ -47,7 +47,7 @@ describe("calendars", () => {
   it("connects a feed, pulls its events and keeps meetings out of the schedule", async () => {
     const { fn, fetched } = app({ "https://cal.example.com/work.ics": FEED });
     const out = await fn.connectCalendar({ label: "Work", url: "webcal://cal.example.com/work.ics" });
-    expect(out.calendar).toMatchObject({ id: "id1", label: "Work", color: "#6c5ce7", source: { kind: "ics", url: "https://cal.example.com/work.ics" } });
+    expect(out.calendar).toMatchObject({ id: "id1", label: "Work", color: "#1d4ed8", source: { kind: "ics", url: "https://cal.example.com/work.ics" } });
     expect(fetched).toEqual(["https://cal.example.com/work.ics"]);
     expect(out.synced).toEqual(["id1"]);
     const ws = await fn.workspace();
