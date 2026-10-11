@@ -7,14 +7,19 @@ import type { Schedule } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
 import type { AssistantContext, ChiefOfStaff, TodoRefinement } from "../ports/chief-of-staff.js";
 import { applyProfilePatch, describeProfile, type Profile, type ProfilePatch } from "../profile/profile.js";
+import { busyRanges, CALENDAR_PALETTE, CalendarError, normaliseFeedUrl, type CalendarEvent, type ConnectedCalendar } from "../calendar/calendar.js";
+import { parseIcs } from "../calendar/ics.js";
+import type { CalendarFeedFetcher } from "../ports/calendar-feeds.js";
+import { TimeRange } from "../shared/time-range.js";
 import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderStepNotes, renderTodos } from "../render/markdown.js";
 import { validateAchievementReport, type AchievementReport, type ReflectionAnswer } from "../review/achievement-report.js";
 import { parseResultReport, type TodoResult } from "../review/result-report.js";
 import type { Clock } from "../shared/clock.js";
 import type { IdGenerator } from "../shared/ids.js";
-import { LocalDate } from "../shared/local-date.js";
+import { LocalDate, LocalTime } from "../shared/local-date.js";
+
+const LocalTime0 = LocalTime.of(0);
 import { DomainError } from "../shared/result.js";
-import type { TimeRange } from "../shared/time-range.js";
 import { findTodo, nextTodoNumber, openTodos, withComposition, type Workspace } from "../workspace/workspace.js";
 
 /**
@@ -112,12 +117,15 @@ export interface BuildScheduleOutput {
 export function scheduleWorkspace(workspace: Workspace, input: BuildScheduleInput, deps: Pick<UseCaseDeps, "clock" | "ids">): BuildScheduleOutput {
   const now = deps.clock.now();
   const todos = openTodos(workspace);
+  const policy = { ...workspace.settings.policy, ...input.policy };
+  const horizon = TimeRange.of(now, new Date(now.getTime() + policy.horizonDays * 86_400_000));
+  const busy = [...(input.busy ?? []), ...busyRanges(workspace.calendar.events, horizon)];
   const schedule = buildSchedule({
     todos,
     workingHours: workspace.settings.workingHours,
     from: now,
-    policy: { ...workspace.settings.policy, ...input.policy },
-    ...(input.busy ? { busy: input.busy } : {}),
+    policy,
+    ...(busy.length ? { busy } : {}),
   });
   const composition = createComposition(deps.ids.next(), now, {
     kind: "schedule",
@@ -250,4 +258,72 @@ export function answerReflection(workspace: Workspace, todoId: TodoId, answer: s
 export function updateProfile(workspace: Workspace, patch: ProfilePatch): { workspace: Workspace; profile: Profile } {
   const profile = applyProfilePatch(workspace.profile, patch);
   return { workspace: { ...workspace, profile }, profile };
+}
+
+// ---------------------------------------------------------------------------------------------
+// 8. Calendars: connect feeds, pull events, treat them as busy time
+
+export interface ConnectCalendarInput {
+  readonly label: string;
+  readonly url: string;
+  readonly color?: string;
+}
+
+export function connectCalendar(workspace: Workspace, input: ConnectCalendarInput, deps: Pick<UseCaseDeps, "ids">): { workspace: Workspace; calendar: ConnectedCalendar } {
+  const url = normaliseFeedUrl(input.url);
+  if (workspace.calendar.calendars.some((c) => c.source.url === url)) throw new CalendarError("duplicate", "That calendar is already connected.");
+  const label = input.label.trim() || `Calendar ${workspace.calendar.calendars.length + 1}`;
+  const color = input.color ?? CALENDAR_PALETTE[workspace.calendar.calendars.length % CALENDAR_PALETTE.length]!;
+  const calendar: ConnectedCalendar = { id: deps.ids.next(), label, color, source: { kind: "ics", url } };
+  return { workspace: { ...workspace, calendar: { ...workspace.calendar, calendars: [...workspace.calendar.calendars, calendar] } }, calendar };
+}
+
+export function removeCalendar(workspace: Workspace, calendarId: string): Workspace {
+  if (!workspace.calendar.calendars.some((c) => c.id === calendarId)) throw new CalendarError("unknown-calendar", "No such calendar.");
+  return {
+    ...workspace,
+    calendar: {
+      ...workspace.calendar,
+      calendars: workspace.calendar.calendars.filter((c) => c.id !== calendarId),
+      events: workspace.calendar.events.filter((e) => e.calendarId !== calendarId),
+    },
+  };
+}
+
+/** The window freenotes keeps events for: yesterday through the scheduling horizon plus a week. */
+export function calendarWindow(workspace: Workspace, now: Date): TimeRange {
+  const start = LocalDate.fromDate(now).addDays(-1).at(LocalTime0);
+  const end = LocalDate.fromDate(now).addDays(workspace.settings.policy.horizonDays + 7).at(LocalTime0);
+  return TimeRange.of(start, end);
+}
+
+export interface SyncCalendarsOutput {
+  readonly workspace: Workspace;
+  readonly synced: readonly string[];
+  readonly failed: ReadonlyArray<{ calendarId: string; error: string }>;
+}
+
+/** Pulls every connected feed. A feed that fails keeps its last events and records the error; the rest still sync. */
+export async function syncCalendars(workspace: Workspace, deps: Pick<UseCaseDeps, "clock"> & { feeds: CalendarFeedFetcher }): Promise<SyncCalendarsOutput> {
+  const now = deps.clock.now();
+  const window = calendarWindow(workspace, now);
+  const synced: string[] = [];
+  const failed: Array<{ calendarId: string; error: string }> = [];
+  let events: CalendarEvent[] = [];
+  const calendars: ConnectedCalendar[] = [];
+  for (const c of workspace.calendar.calendars) {
+    try {
+      const text = await deps.feeds.fetchIcs(c.source.url);
+      events = [...events, ...parseIcs(text, { calendarId: c.id, window })];
+      const { lastError: _dropped, ...rest } = c;
+      calendars.push({ ...rest, lastSyncedAt: now });
+      synced.push(c.id);
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      events = [...events, ...workspace.calendar.events.filter((x) => x.calendarId === c.id)];
+      calendars.push({ ...c, lastError: error });
+      failed.push({ calendarId: c.id, error });
+    }
+  }
+  return { workspace: { ...workspace, calendar: { calendars, events, window } }, synced, failed };
 }

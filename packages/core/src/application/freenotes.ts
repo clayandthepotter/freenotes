@@ -1,21 +1,27 @@
 import type { ChiefOfStaff } from "../ports/chief-of-staff.js";
+import type { CalendarFeedFetcher } from "../ports/calendar-feeds.js";
 import type { WorkspaceRepository } from "../ports/workspace-repository.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 import { randomIdGenerator, type IdGenerator } from "../shared/ids.js";
 import type { TodoId } from "../planning/todo.js";
+import { DomainError } from "../shared/result.js";
 import type { ProfilePatch } from "../profile/profile.js";
 import type { Workspace } from "../workspace/workspace.js";
 import {
   answerReflection,
   captureBraindump,
   composeAchievementReport,
+  connectCalendar,
   planExecution,
+  removeCalendar,
+  syncCalendars,
   recordResults,
   recordStepProgress,
   scheduleWorkspace,
   updateProfile,
   type BuildScheduleInput,
   type CaptureBraindumpInput,
+  type ConnectCalendarInput,
   type UseCaseDeps,
 } from "./use-cases.js";
 
@@ -25,6 +31,8 @@ export interface FreenotesOptions {
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
   readonly profile?: string;
+  /** Needed for syncCalendars; absent means calendars cannot be pulled from this host. */
+  readonly calendarFeeds?: CalendarFeedFetcher;
 }
 
 /**
@@ -133,6 +141,32 @@ export class Freenotes {
   async updateProfile(patch: ProfilePatch) {
     const ws = await this.options.repository.load();
     const out = updateProfile(ws, patch);
+    await this.options.repository.save(out.workspace);
+    return out;
+  }
+
+  /** Connect an ICS feed and pull it straight away when a fetcher is available. */
+  async connectCalendar(input: ConnectCalendarInput) {
+    const ws = await this.options.repository.load();
+    const out = connectCalendar(ws, input, this.deps);
+    await this.options.repository.save(out.workspace);
+    if (!this.options.calendarFeeds) return { ...out, synced: [], failed: [] };
+    const sync = await this.syncCalendars();
+    return { ...out, workspace: sync.workspace, synced: sync.synced, failed: sync.failed };
+  }
+
+  async removeCalendar(calendarId: string) {
+    const ws = await this.options.repository.load();
+    const next = removeCalendar(ws, calendarId);
+    await this.options.repository.save(next);
+    return next;
+  }
+
+  async syncCalendars() {
+    const feeds = this.options.calendarFeeds;
+    if (!feeds) throw new DomainError("no-calendar-feeds", "Calendars cannot be synced from here.");
+    const ws = await this.options.repository.load();
+    const out = await syncCalendars(ws, { clock: this.deps.clock, feeds });
     await this.options.repository.save(out.workspace);
     return out;
   }

@@ -96,7 +96,7 @@ The existing planning, execution, review and composition contexts stay. Today's 
 ## Delivery order
 
 1. **Attention and onboarding.** Shipped 2026-10-10: the first-run journey (welcome, try it, eight-question working-style quiz, your day, AI disclosure, done), a `profile` context (name, style, goals, boundaries) the assistant reads on every request, style-aware attention ranking, and the "Get ready" card. Inline step capture shipped the same day.
-2. **Calendar.** Google and Microsoft calendars, multi-account, busy ranges into the scheduler, focus blocks written back. Calendar tab with 3-day and month views.
+2. **Calendar.** First half shipped 2026-10-11 without OAuth: any number of ICS feeds (Google, Outlook, iCloud all publish one), events on the brief's timeline, meetings in the day's read and the attention sheet, busy ranges into the scheduler, a server-side proxy with public-host guards, CLI commands. Still to do, and needing OAuth clients: Google and Microsoft as first-class sources with write-back of focus blocks, plus 3-day and month views.
 3. **Inbox.** Gmail and Outlook threads as inbox items, triage states, commitment extraction into todos, drafted replies by the chief of staff.
 4. **People.** Derived contacts, cadence, "going cold" surfaced in the brief.
 5. **Issues.** Linear as a source and a sink.

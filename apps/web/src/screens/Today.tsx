@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatDay, formatMinutes, formatTime, LocalDate, type Todo, type Workspace } from "@freenotes/core";
+import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type TimeBlock, type Todo, type Workspace } from "@freenotes/core";
 import { attention, greeting, summaryLine, type AttentionItem } from "../lib/brief.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
 import { Icon } from "../ui/Icon.js";
@@ -29,6 +29,13 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn }:
     blocksByDay.set(k, [...(blocksByDay.get(k) ?? []), b]);
   }
   const blocks = blocksByDay.get(dayKey) ?? [];
+  const day = LocalDate.parse(dayKey);
+  const dayEvents = eventsOn(workspace.calendar.events, TimeRange.of(day.at(LocalTime.of(0)), day.addDays(1).at(LocalTime.of(0))));
+  const allDay = dayEvents.filter((e) => e.allDay);
+  const timed = dayEvents.filter((e) => !e.allDay);
+  const calendarById = new Map(workspace.calendar.calendars.map((c) => [c.id, c] as const));
+  type Slot = { kind: "block"; at: Date; end: Date; block: TimeBlock } | { kind: "event"; at: Date; end: Date; event: CalendarEvent };
+  const slots: Slot[] = [...blocks.map((b): Slot => ({ kind: "block", at: b.range.start, end: b.range.end, block: b })), ...timed.map((e): Slot => ({ kind: "event", at: e.range.start, end: e.range.end, event: e }))].sort((a, b) => a.at.getTime() - b.at.getTime());
   const t = now.getTime();
   const upNext = (schedule?.blocks ?? []).filter((b) => b.range.end.getTime() > t && !["done", "skipped"].includes(statusOf(b.todoId) ?? "")).sort((a, b) => a.range.start.getTime() - b.range.start.getTime())[0];
   const items = attention(workspace, now);
@@ -119,22 +126,66 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn }:
             </div>
           )}
 
-          {blocks.length === 0 ? (
+          {allDay.length > 0 && (
+            <div className="chips allday" aria-label="All day">
+              {allDay.map((e) => (
+                <span key={`${e.uid}-${e.range.start.getTime()}`} className="chip" style={{ background: "var(--surface-2)", color: calendarById.get(e.calendarId)?.color ?? "var(--text-2)" }}>
+                  {e.title}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {slots.length === 0 ? (
             <p className="muted" style={{ padding: "4px 2px" }}>
-              Nothing scheduled for {formatDay(LocalDate.parse(dayKey))}.
+              Nothing scheduled for {formatDay(day)}.
             </p>
           ) : (
             <div className="timeline">
-              {blocks.map((b, i) => {
+              {slots.map((slot, i) => {
+                const isNow = slot.at.getTime() <= t && t < slot.end.getTime();
+                const past = slot.end.getTime() < t;
+                const prev = slots[i - 1];
+                const gapMin = prev ? Math.round((slot.at.getTime() - prev.end.getTime()) / 60000) : 0;
+                const gap = gapMin >= 30 && <div className="gap">{formatMinutes(gapMin)} free</div>;
+                if (slot.kind === "event") {
+                  const e = slot.event;
+                  const color = calendarById.get(e.calendarId)?.color ?? "var(--muted)";
+                  return (
+                    <div key={`e-${e.uid}-${slot.at.getTime()}`} className="contents">
+                      {gap}
+                      <div className={`block event ${isNow ? "now" : ""} ${past ? "past" : ""}`} style={{ "--cal": color } as React.CSSProperties}>
+                        <div className="time">
+                          {formatTime(e.range.start)}
+                          <br />
+                          <span className="muted" style={{ fontWeight: 400 }}>
+                            {formatTime(e.range.end)}
+                          </span>
+                        </div>
+                        <div className="body static">
+                          <div className="row between">
+                            <span className="title">{e.title}</span>
+                            <span className="pill cal" style={{ color }}>
+                              {calendarById.get(e.calendarId)?.label ?? "calendar"}
+                            </span>
+                          </div>
+                          <div className="sub">
+                            {e.range.durationMinutes} min
+                            {e.location ? ` · ${e.location}` : ""}
+                            {e.attendees.length ? ` · ${e.attendees.slice(0, 2).join(", ")}${e.attendees.length > 2 ? ` +${e.attendees.length - 2}` : ""}` : ""}
+                            {e.status === "tentative" ? " · tentative" : ""}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                const b = slot.block;
                 const td = todoById.get(b.todoId);
                 const st = statusOf(b.todoId);
-                const isNow = b.range.start.getTime() <= t && t < b.range.end.getTime();
-                const past = b.range.end.getTime() < t;
-                const prev = blocks[i - 1];
-                const gapMin = prev ? Math.round((b.range.start.getTime() - prev.range.end.getTime()) / 60000) : 0;
                 return (
-                  <div key={i} className="contents">
-                    {gapMin >= 30 && <div className="gap">{formatMinutes(gapMin)} free</div>}
+                  <div key={`b-${i}`} className="contents">
+                    {gap}
                     <div className={`block ${td?.priority ?? ""} ${isNow ? "now" : ""} ${past && !st ? "past" : ""}`}>
                       <div className="time">
                         {formatTime(b.range.start)}
@@ -206,6 +257,7 @@ function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspa
   if (!workspace.profile.style) items.push({ key: "style", title: "Find your working style", body: "Eight quick questions. The brief and the plans adapt to the answer.", action: "Start", go: () => navigate({ tab: "setup" }) });
   const heuristic = state.assistant ? !state.assistant.online || state.assistant.status?.name === "heuristic" : false;
   if (heuristic) items.push({ key: "model", title: "Connect a model", body: "Sharper plans and reports with your own Anthropic or OpenAI key. Offline heuristics until then.", action: "Connect", go: () => navigate({ tab: "settings" }) });
+  if (workspace.calendar.calendars.length === 0) items.push({ key: "calendar", title: "Connect your calendars", body: "Paste the private ICS link from Google, Outlook or iCloud. Meetings show on the brief and are kept out of your focus blocks.", action: "Connect", go: () => navigate({ tab: "settings", id: "calendars" }) });
   if (!signedIn && canSignIn) items.push({ key: "account", title: "Sign in to sync", body: "Keep your workspace on every device. Magic link, no password.", action: "Sign in", go: () => navigate({ tab: "settings" }) });
   const signature = items.map((i) => i.key).join(",");
   const [dismissed, setDismissed] = useState(() => {

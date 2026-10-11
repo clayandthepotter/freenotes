@@ -61,6 +61,7 @@ export const ROUTES = {
   me: "/api/me",
   settings: "/api/settings",
   verify: "/api/verify",
+  ics: "/api/ics",
 } as const;
 
 export interface StatusResponse {

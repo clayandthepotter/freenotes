@@ -2,6 +2,7 @@ import type { Composition } from "../composition/composition.js";
 import type { ExecutionPlan } from "../execution/execution-plan.js";
 import type { StepProgress } from "../execution/step-progress.js";
 import { emptyProfile, type Profile } from "../profile/profile.js";
+import { emptyCalendarState, type CalendarState } from "../calendar/calendar.js";
 import { DEFAULT_POLICY, type Schedule, type SchedulingPolicy } from "../planning/schedule.js";
 import type { Todo, TodoId } from "../planning/todo.js";
 import { WorkingHours } from "../planning/working-hours.js";
@@ -29,6 +30,7 @@ export interface Workspace {
   readonly report?: AchievementReport;
   readonly reflections: readonly ReflectionAnswer[];
   readonly profile: Profile;
+  readonly calendar: CalendarState;
   readonly settings: WorkspaceSettings;
 }
 
@@ -42,6 +44,7 @@ export function emptyWorkspace(settings?: Partial<WorkspaceSettings>): Workspace
     results: [],
     reflections: [],
     profile: emptyProfile(),
+    calendar: emptyCalendarState(),
     settings: {
       workingHours: settings?.workingHours ?? WorkingHours.default(),
       policy: settings?.policy ?? DEFAULT_POLICY,

@@ -12,6 +12,7 @@ import {
   renderExecutionPlan,
   renderSchedule,
   renderTodos,
+  type CalendarFeedFetcher,
   type ChiefOfStaff,
   type Composition,
   type Weekday,
@@ -25,6 +26,8 @@ export interface CliIO {
   readonly readStdin: () => Promise<string>;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly cwd: string;
+  /** Fetches calendar feeds; defaults to global fetch. Tests inject a fake. */
+  readonly fetch?: typeof fetch;
 }
 
 export const HELP = `freenotes — notes with a chief of staff
@@ -42,6 +45,9 @@ Commands
   notes [kind]            List compositions (braindump, schedule, execution-plan, results, achievement-report)
   show <id|latest>        Print a composition
   config                  Show or change working hours and scheduling policy
+  calendar list|add|remove|sync
+                          Connect ICS feeds (the private address of a Google, Outlook or iCloud
+                          calendar); events are kept out of focus blocks
 
 Options
   --workspace <path>      Workspace file (default ./.freenotes/workspace.json, or $FREENOTES_WORKSPACE)
@@ -112,6 +118,7 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
     repository: new FileWorkspaceRepository(workspacePath),
     chiefOfStaff,
     ...(profile ? { profile } : {}),
+    calendarFeeds: nodeFeeds(io.fetch ?? globalThis.fetch.bind(globalThis)),
   });
 
   try {
@@ -202,6 +209,36 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
         const c: Composition | undefined = ref === "latest" ? ws.compositions.at(-1) : ws.compositions.find((x) => x.id === ref || x.id.startsWith(ref));
         if (!c) throw new DomainError("not-found", `No composition ${ref}`);
         io.stdout(`# ${c.title}\n\n${c.body}\n`);
+        return 0;
+      }
+      case "calendar": {
+        const [sub, ...args] = rest;
+        if (sub === "add") {
+          const [url, ...labelParts] = args;
+          if (!url) throw new DomainError("usage", 'Usage: freenotes calendar add <ics-url> ["label"]');
+          const out = await app.connectCalendar({ label: labelParts.join(" ") || values.title || "", url });
+          const failure = out.failed.find((f) => f.calendarId === out.calendar.id);
+          io.stdout(failure ? `Connected ${out.calendar.label} (${out.calendar.id}), but the first pull failed: ${failure.error}\n` : `Connected ${out.calendar.label} (${out.calendar.id}): ${out.workspace.calendar.events.filter((e) => e.calendarId === out.calendar.id).length} events in view.\n`);
+          return 0;
+        }
+        if (sub === "remove") {
+          if (!args[0]) throw new DomainError("usage", "Usage: freenotes calendar remove <id>");
+          await app.removeCalendar(args[0]);
+          io.stdout("Removed.\n");
+          return 0;
+        }
+        if (sub === "sync") {
+          const out = await app.syncCalendars();
+          io.stdout(`Synced ${out.synced.length} calendar${out.synced.length === 1 ? "" : "s"}, ${out.workspace.calendar.events.length} events in view.\n`);
+          for (const f of out.failed) io.stderr(`${f.calendarId}: ${f.error}\n`);
+          return out.failed.length ? 1 : 0;
+        }
+        const ws = await app.workspace();
+        if (ws.calendar.calendars.length === 0) io.stdout("No calendars connected. Add one: freenotes calendar add <ics-url> \"Work\"\n");
+        for (const c of ws.calendar.calendars) {
+          const n = ws.calendar.events.filter((e) => e.calendarId === c.id).length;
+          io.stdout(`${c.id}  ${c.label.padEnd(16)} ${n} events${c.lastSyncedAt ? `  synced ${formatDay(c.lastSyncedAt)}` : ""}${c.lastError ? `  error: ${c.lastError}` : ""}\n`);
+        }
         return 0;
       }
       case "config": {
@@ -303,4 +340,17 @@ function parseBusy(raw: string): TimeRange {
   const end = new Date(e ?? "");
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new DomainError("usage", `--busy expects <startISO>/<endISO>, got "${raw}"`);
   return TimeRange.of(start, end);
+}
+
+/** The CLI runs on the user's own machine, so it fetches feeds directly; it still insists on a real calendar coming back. */
+function nodeFeeds(fetchImpl: typeof fetch): CalendarFeedFetcher {
+  return {
+    async fetchIcs(url) {
+      const res = await fetchImpl(url, { headers: { accept: "text/calendar, text/plain;q=0.9, */*;q=0.1", "user-agent": "freenotes-cli/1" } });
+      if (!res.ok) throw new DomainError("feed-failed", `The calendar answered ${res.status}. Check the address is the private ICS link.`);
+      const text = await res.text();
+      if (!/BEGIN:VCALENDAR/i.test(text)) throw new DomainError("not-a-feed", "That address did not return a calendar.");
+      return text;
+    },
+  };
 }

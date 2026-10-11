@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Freenotes, type Workspace, type WorkspaceRepository } from "@freenotes/core";
+import { HttpCalendarFeeds } from "@freenotes/ai-http";
 import { SupabaseWorkspaceRepository } from "@freenotes/supabase";
 import { LocalStorageWorkspaceRepository } from "./local-storage-repository.js";
 import { resolveAssistant, type AssistantMode, type ResolvedAssistant } from "./assistant.js";
@@ -95,10 +96,26 @@ export function useFreenotes(session: SessionState): FreenotesState {
     if (!assistant) return undefined;
     // Signed-in users keep their profile on the server; it is applied there.
     const localProfile = storage === "local" && profile.trim() ? { profile: profile.trim() } : {};
-    const instance = new Freenotes({ repository, chiefOfStaff: assistant.chiefOfStaff, ...localProfile });
+    const instance = new Freenotes({ repository, chiefOfStaff: assistant.chiefOfStaff, calendarFeeds: new HttpCalendarFeeds({ getToken: session.getToken }), ...localProfile });
     appRef.current = instance;
     return instance;
-  }, [assistant, repository, profile, storage]);
+  }, [assistant, repository, profile, storage, session.getToken]);
+
+  // Keep connected calendars fresh: pull again when the newest sync is older than fifteen minutes.
+  const syncingRef = useRef(false);
+  useEffect(() => {
+    if (!app || !workspace || workspace.calendar.calendars.length === 0 || syncingRef.current) return;
+    const newest = Math.max(0, ...workspace.calendar.calendars.map((c) => c.lastSyncedAt?.getTime() ?? 0));
+    if (Date.now() - newest < 15 * 60_000) return;
+    syncingRef.current = true;
+    void app
+      .syncCalendars()
+      .then(() => reload())
+      .catch((e: Error) => console.warn("calendar sync failed", e.message))
+      .finally(() => {
+        syncingRef.current = false;
+      });
+  }, [app, workspace, reload]);
 
   const run = useCallback(
     async <T,>(label: string, action: (app: Freenotes) => Promise<T>): Promise<T | undefined> => {

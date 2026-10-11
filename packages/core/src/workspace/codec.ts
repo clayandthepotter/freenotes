@@ -9,6 +9,7 @@ import type { AchievementReport } from "../review/achievement-report.js";
 import { DomainError } from "../shared/result.js";
 import { emptyProfile } from "../profile/profile.js";
 import type { WorkingStyle } from "../profile/working-style.js";
+import { emptyCalendarState, type CalendarEvent, type ConnectedCalendar } from "../calendar/calendar.js";
 
 /** JSON-safe shape of a workspace. Dates are ISO strings. */
 export interface WorkspaceSnapshot {
@@ -39,6 +40,12 @@ export interface WorkspaceSnapshot {
   reflections: Array<{ todoId: string; question: string; answer: string; answeredAt: string }>;
   /** Optional for snapshots written before profiles existed. */
   profile?: { name?: string; style?: unknown; goals: string[]; boundaries: string[]; onboardedAt?: string };
+  /** Optional for snapshots written before calendars existed. */
+  calendar?: {
+    calendars: Array<{ id: string; label: string; color: string; source: { kind: "ics"; url: string }; lastSyncedAt?: string; lastError?: string }>;
+    events: Array<{ calendarId: string; uid: string; title: string; start: string; end: string; allDay: boolean; location?: string; attendees: string[]; status: string; transparent: boolean }>;
+    window?: { start: string; end: string };
+  };
   settings: { workingHours: Record<string, { start: string; end: string }>; policy: Record<string, number> };
 }
 
@@ -89,6 +96,29 @@ export function serializeWorkspace(ws: Workspace): WorkspaceSnapshot {
       boundaries: [...ws.profile.boundaries],
       ...(ws.profile.onboardedAt ? { onboardedAt: ws.profile.onboardedAt.toISOString() } : {}),
     },
+    calendar: {
+      calendars: ws.calendar.calendars.map((c) => ({
+        id: c.id,
+        label: c.label,
+        color: c.color,
+        source: { ...c.source },
+        ...(c.lastSyncedAt ? { lastSyncedAt: c.lastSyncedAt.toISOString() } : {}),
+        ...(c.lastError ? { lastError: c.lastError } : {}),
+      })),
+      events: ws.calendar.events.map((e) => ({
+        calendarId: e.calendarId,
+        uid: e.uid,
+        title: e.title,
+        start: e.range.start.toISOString(),
+        end: e.range.end.toISOString(),
+        allDay: e.allDay,
+        ...(e.location ? { location: e.location } : {}),
+        attendees: [...e.attendees],
+        status: e.status,
+        transparent: e.transparent,
+      })),
+      ...(ws.calendar.window ? { window: range(ws.calendar.window) } : {}),
+    },
     settings: { workingHours: ws.settings.workingHours.toJSON(), policy: { ...ws.settings.policy } },
   };
 }
@@ -121,6 +151,34 @@ export function deserializeWorkspace(raw: unknown): Workspace {
           ...(snap.profile.onboardedAt ? { onboardedAt: new Date(snap.profile.onboardedAt) } : {}),
         }
       : emptyProfile(),
+    calendar: snap.calendar
+      ? {
+          calendars: snap.calendar.calendars.map(
+            (c): ConnectedCalendar => ({
+              id: c.id,
+              label: c.label,
+              color: c.color,
+              source: { kind: "ics", url: c.source.url },
+              ...(c.lastSyncedAt ? { lastSyncedAt: new Date(c.lastSyncedAt) } : {}),
+              ...(c.lastError ? { lastError: c.lastError } : {}),
+            }),
+          ),
+          events: snap.calendar.events.map(
+            (e): CalendarEvent => ({
+              calendarId: e.calendarId,
+              uid: e.uid,
+              title: e.title,
+              range: TimeRange.of(new Date(e.start), new Date(e.end)),
+              allDay: e.allDay,
+              ...(e.location ? { location: e.location } : {}),
+              attendees: [...e.attendees],
+              status: e.status as CalendarEvent["status"],
+              transparent: e.transparent,
+            }),
+          ),
+          ...(snap.calendar.window ? { window: TimeRange.of(new Date(snap.calendar.window.start), new Date(snap.calendar.window.end)) } : {}),
+        }
+      : emptyCalendarState(),
     settings: {
       workingHours: WorkingHours.fromJSON(snap.settings.workingHours),
       policy: snap.settings.policy as unknown as Workspace["settings"]["policy"],

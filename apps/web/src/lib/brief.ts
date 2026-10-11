@@ -1,4 +1,4 @@
-import { formatDay, formatMinutes, formatTime, LocalDate, type StyleDimension, type Workspace } from "@freenotes/core";
+import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type StyleDimension, type Workspace } from "@freenotes/core";
 
 /** "Good morning, Clay." — the name is optional and already trimmed by the caller. */
 export function greeting(now: Date, name?: string): string {
@@ -18,8 +18,20 @@ export function nameFromEmail(email: string | undefined): string | undefined {
 export interface BriefStats {
   readonly blocksToday: number;
   readonly minutesToday: number;
+  readonly meetingsToday: number;
   readonly atRisk: number;
   readonly nextDayWithWork?: Date;
+}
+
+/** The local calendar day containing `now`, as a range. */
+export function dayRange(now: Date): TimeRange {
+  const d = LocalDate.fromDate(now);
+  return TimeRange.of(d.at(LocalTime.of(0)), d.addDays(1).at(LocalTime.of(0)));
+}
+
+/** Timed, non-cancelled meetings on the given day. */
+export function meetingsOn(ws: Workspace, day: TimeRange): CalendarEvent[] {
+  return eventsOn(ws.calendar.events, day).filter((e) => !e.allDay);
 }
 
 export function briefStats(ws: Workspace, now: Date): BriefStats {
@@ -31,6 +43,7 @@ export function briefStats(ws: Workspace, now: Date): BriefStats {
   return {
     blocksToday: todays.length,
     minutesToday: todays.reduce((s, b) => s + b.range.durationMinutes, 0),
+    meetingsToday: meetingsOn(ws, dayRange(now)).length,
     atRisk: ws.schedule?.warnings.length ?? 0,
     ...(nextDay ? { nextDayWithWork: nextDay } : {}),
   };
@@ -39,19 +52,23 @@ export function briefStats(ws: Workspace, now: Date): BriefStats {
 /** The one-line read on the day under the greeting. Written like a person, not a dashboard. */
 export function summaryLine(ws: Workspace, now: Date): string {
   const open = ws.todos.filter((t) => !ws.results.some((r) => r.todoId === t.id && (r.status === "done" || r.status === "skipped")));
-  if (ws.todos.length === 0) return "Nothing captured yet. Braindump what's on your mind.";
-  if (!ws.schedule) return `${open.length} thing${open.length === 1 ? "" : "s"} waiting to be placed on the calendar.`;
   const s = briefStats(ws, now);
+  const meetings = s.meetingsToday === 0 ? "" : ` ${s.meetingsToday} meeting${s.meetingsToday === 1 ? "" : "s"} today.`;
+  if (ws.todos.length === 0) return `Nothing captured yet.${meetings} Braindump what's on your mind.`;
+  if (!ws.schedule) return `${open.length} thing${open.length === 1 ? "" : "s"} waiting to be placed on the calendar.${meetings}`;
   const risk = s.atRisk === 0 ? "" : s.atRisk === 1 ? " One deadline at risk." : ` ${s.atRisk} deadlines at risk.`;
   if (s.blocksToday === 0) {
-    if (open.length === 0) return "Everything is done. Enjoy the clear day.";
-    return `Clear today.${s.nextDayWithWork ? ` Next focus block ${formatDay(s.nextDayWithWork)}.` : ""}${risk}`;
+    if (open.length === 0) return `Everything is done.${meetings} Enjoy the clear day.`;
+    return `Clear today.${meetings}${s.nextDayWithWork ? ` Next focus block ${formatDay(s.nextDayWithWork)}.` : ""}${risk}`;
   }
-  const light = s.minutesToday <= 120 ? "Light day." : s.minutesToday >= 360 ? "Full day." : "";
-  return `${s.blocksToday} focus block${s.blocksToday === 1 ? "" : "s"} today, ${formatMinutes(s.minutesToday)} planned.${light ? ` ${light}` : ""}${risk}`;
+  const load = s.minutesToday + s.meetingsToday * 45;
+  const light = load <= 120 ? "Light day." : load >= 360 ? "Full day." : "";
+  const blocksText = `${s.blocksToday} focus block${s.blocksToday === 1 ? "" : "s"}`;
+  const meetingsText = s.meetingsToday === 0 ? "" : ` and ${s.meetingsToday} meeting${s.meetingsToday === 1 ? "" : "s"}`;
+  return `${blocksText}${meetingsText} today, ${formatMinutes(s.minutesToday)} planned.${light ? ` ${light}` : ""}${risk}`;
 }
 
-export type AttentionKind = "now" | "next" | "overdue" | "risk" | "unrecorded" | "unplanned" | "review" | "capture";
+export type AttentionKind = "now" | "meeting" | "next" | "overdue" | "risk" | "unrecorded" | "unplanned" | "review" | "capture";
 
 export interface AttentionItem {
   readonly kind: AttentionKind;
@@ -65,10 +82,10 @@ export interface AttentionItem {
  * ("now" always leads: whatever the style, the block that is running is the block that is running).
  */
 const LEADS: Record<StyleDimension, readonly AttentionKind[]> = {
-  triage: ["now", "overdue", "risk", "next"],
-  capture: ["now", "unrecorded", "unplanned", "capture"],
-  improve: ["now", "review", "unrecorded"],
-  align: ["now", "risk", "next"],
+  triage: ["now", "meeting", "overdue", "risk", "next"],
+  capture: ["now", "meeting", "unrecorded", "unplanned", "capture"],
+  improve: ["now", "meeting", "review", "unrecorded"],
+  align: ["now", "meeting", "risk", "next"],
 };
 
 /**

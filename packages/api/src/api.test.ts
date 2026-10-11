@@ -20,6 +20,17 @@ describe("chief-of-staff API", () => {
     expect(json.refinements[0]).toMatchObject({ todoId: "T1", estimatedMinutes: 20 });
   });
 
+  it("proxies calendar feeds and refuses private hosts", async () => {
+    const proxied = createApi({ chiefOfStaff: new HeuristicChiefOfStaff(), calendarFeeds: { fetchIcs: async (url) => `BEGIN:VCALENDAR\nX-URL:${url}\nEND:VCALENDAR` } });
+    const ok = await proxied.request(`${ROUTES.ics}?url=${encodeURIComponent("https://example.com/a.ics")}`);
+    expect(ok.status).toBe(200);
+    expect(await ok.text()).toContain("X-URL:https://example.com/a.ics");
+    const bad = await app.request(`${ROUTES.ics}?url=${encodeURIComponent("https://127.0.0.1/a.ics")}`);
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { error: string }).error).toMatch(/public host/);
+    expect((await app.request(ROUTES.ics)).status).toBe(400);
+  });
+
   it("returns 400 on malformed JSON", async () => {
     const res = await app.request(ROUTES.plan, { method: "POST", body: "{nope", headers: { "content-type": "application/json" } });
     expect(res.status).toBe(400);

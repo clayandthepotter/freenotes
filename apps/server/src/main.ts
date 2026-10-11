@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
-import { chiefOfStaffFromEnv, SecretBox } from "@freenotes/api";
+import { chiefOfStaffFromEnv, FeedProxy, SecretBox } from "@freenotes/api";
 import { SupabaseAuthenticator, SupabaseUserSettingsRepository, supabaseConfigFromEnv } from "@freenotes/supabase";
 import { createApp } from "./app.js";
 
@@ -26,6 +26,7 @@ if (!supabase || !keySecret) console.warn("Accounts disabled: set SUPABASE_URL, 
 const app = createApp({
   chiefOfStaff,
   ...accounts,
+  ...(process.env.FREENOTES_ALLOW_PRIVATE_FEEDS === "1" ? { calendarFeeds: new FeedProxy({ allowPrivate: true }) } : {}),
   ...(existsSync(staticDir) ? { staticDir } : {}),
   ...(process.env.FREENOTES_CORS_ORIGIN ? { corsOrigin: process.env.FREENOTES_CORS_ORIGIN } : {}),
 });

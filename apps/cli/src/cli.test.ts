@@ -11,6 +11,8 @@ beforeEach(async () => {
 });
 afterEach(() => rm(dir, { recursive: true, force: true }));
 
+const FEED = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:m1\nDTSTART:20991012T100000Z\nDTEND:20991012T110000Z\nSUMMARY:Far future\nEND:VEVENT\nBEGIN:VEVENT\nUID:m2\nDTSTART:20200101T090000Z\nDTEND:20200101T093000Z\nRRULE:FREQ=DAILY\nSUMMARY:Daily standup\nEND:VEVENT\nEND:VCALENDAR";
+
 function io(stdin = "") {
   const out: string[] = [];
   const err: string[] = [];
@@ -20,6 +22,7 @@ function io(stdin = "") {
     readStdin: async () => stdin,
     env: { FREENOTES_AI: "heuristic" },
     cwd: dir,
+    fetch: (async (url: string | URL | Request) => (String(url).includes("work.ics") ? new Response(FEED, { status: 200 }) : new Response("nope", { status: 404 }))) as unknown as typeof fetch,
   };
   return { cli, out: () => out.join(""), err: () => err.join("") };
 }
@@ -81,6 +84,28 @@ describe("freenotes CLI", () => {
     expect(await runCli(["config"], t.cli)).toBe(0);
     expect(t.out()).toContain('"1":{"start":"08:00","end":"12:00"}');
     expect(t.out()).toContain('"horizonDays":14'); // --days on schedule is per-run, not persisted
+  });
+
+  it("connects, lists, syncs and removes calendars", async () => {
+    let t = io();
+    expect(await runCli(["calendar"], t.cli)).toBe(0);
+    expect(t.out()).toContain("No calendars connected");
+    t = io();
+    expect(await runCli(["calendar", "add", "webcal://cal.example.com/work.ics", "Work"], t.cli)).toBe(0);
+    expect(t.out()).toMatch(/Connected Work \([\w-]+\): \d+ events in view/);
+    t = io();
+    expect(await runCli(["calendar"], t.cli)).toBe(0);
+    expect(t.out()).toContain("Work");
+    const id = t.out().trim().split(/\s+/)[0]!;
+    t = io();
+    expect(await runCli(["calendar", "add", "https://cal.example.com/missing.ics", "Broken"], t.cli)).toBe(0);
+    expect(t.out()).toContain("first pull failed");
+    t = io();
+    expect(await runCli(["calendar", "sync"], t.cli)).toBe(1); // the broken one fails, the rest still sync
+    expect(t.err()).toContain("answered 404");
+    t = io();
+    expect(await runCli(["calendar", "remove", id], t.cli)).toBe(0);
+    expect(t.out()).toContain("Removed.");
   });
 
   it("reports domain errors with exit code 1 and usage errors with 2", async () => {

@@ -3,6 +3,7 @@ export * from "./composition/index.js";
 export * from "./planning/index.js";
 export * from "./execution/index.js";
 export * from "./profile/index.js";
+export * from "./calendar/index.js";
 export * from "./review/index.js";
 export * from "./workspace/index.js";
 export * from "./ports/index.js";

@@ -1,10 +1,11 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
-import { ChiefOfStaffError, DomainError, LocalDate, createTodo, type ChiefOfStaff } from "@freenotes/core";
+import { ChiefOfStaffError, DomainError, LocalDate, createTodo, type CalendarFeedFetcher, type ChiefOfStaff } from "@freenotes/core";
 import { createChiefOfStaffHandlers, ROUTES, type SettingsPatch, type SettingsView } from "@freenotes/ai-http";
 import { EMPTY_SETTINGS, type AssistantSettings, type AuthContext, type Authenticator, type ResolvedAssistant, type UserSettingsRepository } from "./ports.js";
 import { createProviderChiefOfStaff, findProvider, providerViews } from "./providers.js";
 import type { SecretBox } from "./secret-box.js";
+import { FeedProxy } from "./feed-proxy.js";
 
 export interface ApiOptions {
   /** The operator-configured assistant, used for anonymous requests and for users on "default". */
@@ -14,6 +15,8 @@ export interface ApiOptions {
   readonly authenticator?: Authenticator;
   readonly settings?: UserSettingsRepository;
   readonly secretBox?: SecretBox;
+  /** Fetches calendar feeds for the browser. Defaults to a public-https-only proxy. */
+  readonly calendarFeeds?: CalendarFeedFetcher;
 }
 
 export type ApiEnv = { Variables: { auth: AuthContext | null } };
@@ -88,6 +91,15 @@ export function createApi(options: ApiOptions): Hono<{ Variables: Vars }> {
     return c.json(await handlersFor(assistant).report(withProfile(await c.req.json(), assistant)));
   });
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  // Calendar feeds: the browser cannot fetch other origins, so the server does, with public-host guards.
+  const feeds = options.calendarFeeds ?? new FeedProxy();
+  app.get(ROUTES.ics, async (c) => {
+    const url = c.req.query("url");
+    if (!url) throw new DomainError("invalid-url", "Missing url.");
+    const text = await feeds.fetchIcs(url);
+    return c.text(text, 200, { "content-type": "text/calendar; charset=utf-8", "cache-control": "private, max-age=60" });
+  });
 
   app.get(ROUTES.providers, (c) => c.json({ providers: providerViews() }));
 

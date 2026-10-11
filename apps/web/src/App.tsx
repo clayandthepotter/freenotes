@@ -92,7 +92,7 @@ export function App() {
         title = "Settings";
         subtitle = state.assistant?.label;
         onBack = () => back({ tab: "today" });
-        body = <Settings state={state} session={session} workspace={ws} />;
+        body = <Settings state={state} session={session} workspace={ws} focus={route.id} />;
         break;
     }
   }

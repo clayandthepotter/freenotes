@@ -1,5 +1,6 @@
 import type {
   AchievementReport,
+  CalendarFeedFetcher,
   ChiefOfStaff,
   ComposeReportRequest,
   ExecutionPlan,
@@ -125,5 +126,34 @@ export class HttpChiefOfStaff implements ChiefOfStaff {
       throw new HttpChiefOfStaffError(res.status, message);
     }
     return (await res.json()) as T;
+  }
+}
+
+/** Pulls calendar feeds through the server's /api/ics proxy (browsers cannot fetch other origins). */
+export class HttpCalendarFeeds implements CalendarFeedFetcher {
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly getToken: () => Promise<string | null | undefined>;
+
+  constructor(options: HttpChiefOfStaffOptions = {}) {
+    this.baseUrl = (options.baseUrl ?? "").replace(/\/$/, "");
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.getToken = options.getToken ?? (async () => null);
+  }
+
+  async fetchIcs(url: string): Promise<string> {
+    const token = await this.getToken();
+    const res = await this.fetchImpl(`${this.baseUrl}${ROUTES.ics}?url=${encodeURIComponent(url)}`, { headers: token ? { authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) {
+      let message = `Calendar proxy answered ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) message = body.error;
+      } catch {
+        /* not JSON */
+      }
+      throw new HttpChiefOfStaffError(res.status, message);
+    }
+    return res.text();
   }
 }

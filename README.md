@@ -96,6 +96,16 @@ The web app and its API deploy as one Vercel project: the Vite build is served s
 
 Any Node host works too: `pnpm build && pnpm --filter @freenotes/server start`.
 
+### Calendars
+
+Connect every calendar you have, work and personal, without OAuth: paste the private ICS address each one publishes (Google: calendar settings → "Secret address in iCal format"; Outlook: Settings → Shared calendars → Publish; iCloud: share as a public calendar). freenotes pulls the feed through its own server (public https hosts only, nothing stored but the events in view), shows meetings on the brief's timeline with the calendar's colour, counts them in the day's read, flags the next one in "What needs my attention", and keeps focus blocks out of their way when it builds the schedule. Feeds refresh every fifteen minutes while the app is open, or on demand.
+
+```bash
+freenotes calendar add "webcal://calendar.google.com/calendar/ical/…/basic.ics" "Work"
+freenotes calendar sync
+freenotes calendar          # list
+```
+
 ### Accounts and bring your own key
 
 Optional. With a Supabase project configured, users can sign in (magic-link email), sync their workspace across devices, and choose their own model provider and API key in Settings: Anthropic, OpenAI, or any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, a self-hosted Ollama). Keys are encrypted on the server with `FREENOTES_KEY_SECRET` and never sent back to the browser. Without an account the app stays local-first, exactly as before.
@@ -132,7 +142,7 @@ A pnpm monorepo organised around a domain model; see [`docs/architecture.md`](do
 | `@freenotes/ai-structured` | Provider-neutral base for model adapters: schemas, prompts, domain mapping. |
 | `@freenotes/ai-anthropic` | Claude adapter via `@anthropic-ai/sdk` structured outputs. |
 | `@freenotes/ai-openai` | OpenAI-compatible adapter (OpenAI, Groq, Mistral, OpenRouter, Ollama, …). |
-| `@freenotes/api` | The Hono API: provider registry, per-user assistant resolution, encrypted settings, account routes. |
+| `@freenotes/api` | The Hono API: provider registry, per-user assistant resolution, encrypted settings, account routes, the calendar feed proxy. |
 | `@freenotes/supabase` | Supabase adapters: JWT authenticator, RLS-scoped settings, revisioned workspace sync. |
 | `@freenotes/ai-http` | Wire protocol, `fetch` client and framework-agnostic handlers for putting a chief of staff behind HTTP. |
 | `@freenotes/storage-fs` | Atomic JSON-file `WorkspaceRepository`. |

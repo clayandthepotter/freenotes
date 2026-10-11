@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ProviderView, SettingsPatch, SettingsView } from "@freenotes/ai-http";
-import { LocalTime, WorkingHours, type Weekday, type Workspace } from "@freenotes/core";
+import { formatTime, LocalTime, WorkingHours, type Weekday, type Workspace } from "@freenotes/core";
 import type { AssistantMode } from "../lib/assistant.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
 import type { SessionState } from "../lib/use-session.js";
@@ -16,7 +16,7 @@ const DAYS: Array<[Weekday, string]> = [
   [0, "S"],
 ];
 
-export function Settings({ state, session, workspace }: { state: FreenotesState; session: SessionState; workspace: Workspace }) {
+export function Settings({ state, session, workspace, focus }: { state: FreenotesState; session: SessionState; workspace: Workspace; focus?: string | undefined }) {
   const signedIn = Boolean(session.session);
   return (
     <div className="settings-section stack-lg">
@@ -42,6 +42,8 @@ export function Settings({ state, session, workspace }: { state: FreenotesState;
       <YouCard state={state} workspace={workspace} />
 
       {signedIn && state.assistant?.api && <AssistantSettings state={state} session={session} />}
+
+      <CalendarsCard state={state} workspace={workspace} autoFocus={focus === "calendars"} />
 
       <SchedulePrefs state={state} workspace={workspace} />
 
@@ -429,6 +431,65 @@ function YouCard({ state, workspace }: { state: FreenotesState; workspace: Works
           Save
         </button>
       </div>
+    </div>
+  );
+}
+
+function CalendarsCard({ state, workspace, autoFocus }: { state: FreenotesState; workspace: Workspace; autoFocus: boolean }) {
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const [result, setResult] = useState<string>();
+  const calendars = workspace.calendar.calendars;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (autoFocus) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [autoFocus]);
+  const connect = async () => {
+    setResult(undefined);
+    const out = await state.run("Connecting calendar…", (app) => app.connectCalendar({ label, url }));
+    if (!out) return;
+    setLabel("");
+    setUrl("");
+    const failed = out.failed.find((f) => f.calendarId === out.calendar.id);
+    setResult(failed ? `Connected, but the first pull failed: ${failed.error}` : `Connected. ${out.workspace.calendar.events.filter((e) => e.calendarId === out.calendar.id).length} events in view.`);
+  };
+  return (
+    <div className="card stack" ref={ref} id="calendars">
+      <div className="row between">
+        <h3>Calendars</h3>
+        {calendars.length > 0 && (
+          <button className="btn sm outline" disabled={!!state.busy} onClick={() => state.run("Syncing calendars…", (app) => app.syncCalendars())}>
+            <Icon name="refresh" size={14} /> Sync now
+          </button>
+        )}
+      </div>
+      <p className="muted small">Meetings show on your brief and are kept out of focus blocks. Paste the private ICS address of each calendar: Google (Settings → your calendar → "Secret address in iCal format"), Outlook (Settings → Shared calendars → Publish), iCloud (share as public calendar).</p>
+      {calendars.map((c) => (
+        <div key={c.id} className="cal-row">
+          <span className="dot" style={{ background: c.color }} />
+          <div className="grow">
+            <div style={{ fontWeight: 600 }}>{c.label}</div>
+            <div className={`muted small ${c.lastError ? "danger" : ""}`}>
+              {c.lastError ? c.lastError : c.lastSyncedAt ? `${workspace.calendar.events.filter((e) => e.calendarId === c.id).length} events · synced ${formatTime(c.lastSyncedAt)}` : "Not synced yet"}
+            </div>
+          </div>
+          <button className="icon-btn" aria-label={`Remove ${c.label}`} onClick={() => window.confirm(`Disconnect ${c.label}?`) && state.run("Removing calendar…", (app) => app.removeCalendar(c.id))}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+      ))}
+      <label className="field">
+        Name
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Work, Home, Family…" />
+      </label>
+      <label className="field">
+        Private ICS address
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" inputMode="url" autoCapitalize="off" autoCorrect="off" />
+      </label>
+      {result && <p className="muted small">{result}</p>}
+      <button className="btn primary" disabled={!url.trim() || !!state.busy} onClick={connect}>
+        Connect calendar
+      </button>
     </div>
   );
 }

@@ -18,6 +18,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 | **Achievement report** | The chief of staff's debrief: headline, achievements ordered by significance, improvements with evidence, one **reflection** question per completed todo. |
 | **Chief of staff** | The assistant role (a port). Implementations: Claude, heuristic. |
 | **Profile** | Who the executive is: name, working style (from the eight-question quiz), goals the work should serve, boundaries the assistant must respect. Described to the chief of staff with every request. |
+| **Connected calendar** | A calendar the executive linked, today an ICS feed. Its **calendar events** are read, never owned: they appear on the brief and count as busy time for the scheduler. |
 | **Workspace** | Everything one executive has: compositions, todos, schedule, plans, results, report, reflection answers, settings. |
 
 ## Bounded contexts (inside `@freenotes/core`)
@@ -26,6 +27,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 - **execution** — `ExecutionPlan` and its invariants, and `StepProgress` (ticks and inline notes per step).
 - **review** — results parsing, `AchievementReport`, reflections and their invariants.
 - **profile** — the working-style quiz and its scoring, the `Profile` aggregate and its description for the assistant.
+- **calendar** — connected calendars, the iCalendar reader (recurrence, time zones, overrides), busy-time derivation.
 - **composition** — notes as the user sees them.
 - **workspace** — the aggregate that ties the above together and its JSON codec.
 
@@ -41,7 +43,8 @@ apps/cli · apps/web · apps/server             UI / transport
 @freenotes/core domain (planning, execution,  pure functions, value objects, invariants
                         review, composition, workspace)
          │
-ports: ChiefOfStaff, WorkspaceRepository       interfaces the domain needs
+ports: ChiefOfStaff, WorkspaceRepository,      interfaces the domain needs
+       CalendarFeedFetcher
          ▲
 adapters: ai-anthropic, ai-http, storage-fs,   implementations
           heuristic, memory, localStorage
@@ -73,6 +76,10 @@ Both implementations must produce output that passes `validateExecutionPlan` and
 ## Accounts
 
 Optional, provided by Supabase (see ADR 0004). `@freenotes/api` defines two more ports, `Authenticator` and `UserSettingsRepository`, and resolves a `ChiefOfStaff` per request: a signed-in user's provider and decrypted key when configured, otherwise the operator default. `@freenotes/supabase` implements the ports plus a `WorkspaceRepository` that stores the JSON snapshot with a revision for optimistic concurrency. Authorisation is row-level security only; no service-role key exists in the system.
+
+## Calendars
+
+`parseIcs` is a dependency-free iCalendar reader for what Google, Outlook and iCloud publish: folded lines, DATE and DATE-TIME values (UTC, floating, `TZID` including common Windows zone names, resolved through `Intl`), `DURATION`, `RRULE` with `FREQ`/`INTERVAL`/`COUNT`/`UNTIL`/`BYDAY`, `EXDATE`, `RECURRENCE-ID` overrides, `STATUS`, `TRANSP`. Recurrences are expanded only inside the window the workspace keeps (yesterday to the scheduling horizon plus a week); unbounded rules are fast-forwarded to the window rather than walked from their start. Browsers cannot fetch other origins, so `@freenotes/api` exposes `/api/ics`, a proxy that only accepts public https hosts; the CLI fetches directly. `busyRanges` turns timed, opaque, non-cancelled events into merged busy time that `scheduleWorkspace` subtracts from the working hours.
 
 ## Persistence
 
