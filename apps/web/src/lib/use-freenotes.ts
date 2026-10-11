@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Freenotes, type Workspace, type WorkspaceRepository } from "@freenotes/core";
+import { Freenotes, updateProfile as applyProfile, type ProfilePatch, type Workspace, type WorkspaceRepository } from "@freenotes/core";
 import { HttpCalendarFeeds, HttpIssueSource } from "@freenotes/ai-http";
 import { SupabaseWorkspaceRepository } from "@freenotes/supabase";
 import { LocalStorageWorkspaceRepository } from "./local-storage-repository.js";
@@ -26,6 +26,9 @@ export interface FreenotesState {
   profile: string;
   setProfile(p: string): void;
   /** Linear: a key is known either locally (not signed in) or on the account. */
+  /** Profile and settings writes need no assistant, so they work before one has resolved. */
+  updateProfile(patch: ProfilePatch): Promise<void>;
+  updateSettings(update: (settings: Workspace["settings"]) => Workspace["settings"]): Promise<void>;
   readonly linearConnected: boolean;
   readonly localLinearKey: string | undefined;
   setLocalLinearKey(key: string | undefined): void;
@@ -171,6 +174,32 @@ export function useFreenotes(session: SessionState): FreenotesState {
     };
   }, [storage, assistant, integrationsNonce]);
 
+  const updateProfile = useCallback(
+    async (patch: ProfilePatch) => {
+      try {
+        const ws = await repository.load();
+        await repository.save(applyProfile(ws, patch).workspace);
+        await reload();
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    },
+    [repository, reload],
+  );
+
+  const updateSettings = useCallback(
+    async (update: (settings: Workspace["settings"]) => Workspace["settings"]) => {
+      try {
+        const ws = await repository.load();
+        await repository.save({ ...ws, settings: update(ws.settings) });
+        await reload();
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    },
+    [repository, reload],
+  );
+
   const setLocalLinearKey = useCallback((key: string | undefined) => {
     if (key) window.localStorage.setItem(LINEAR_KEY, key);
     else window.localStorage.removeItem(LINEAR_KEY);
@@ -204,6 +233,8 @@ export function useFreenotes(session: SessionState): FreenotesState {
     refreshAssistant: () => setAssistantNonce((n) => n + 1),
     profile,
     setProfile,
+    updateProfile,
+    updateSettings,
     linearConnected: storage === "local" ? Boolean(localLinearKey) : accountLinear,
     localLinearKey,
     setLocalLinearKey,

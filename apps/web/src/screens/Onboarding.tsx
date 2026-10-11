@@ -46,15 +46,14 @@ export function Onboarding({ state, session, onDone }: { state: FreenotesState; 
     if (step !== "analysing") return;
     const computed = scoreWorkingStyle(answers);
     setStyle(computed);
-    void state.app?.updateProfile({ style: computed }).then(() => state.reload());
+    void state.updateProfile({ style: computed });
     const t = window.setTimeout(() => go("style"), 1100);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   const finish = async () => {
-    await state.app?.updateProfile({ onboardedAt: new Date() });
-    await state.reload();
+    await state.updateProfile({ onboardedAt: new Date() });
     onDone();
   };
 
@@ -187,8 +186,8 @@ function TryIt({ state, onNext }: { state: FreenotesState; onNext: () => void })
         )}
       </div>
       <div className="ob-actions">
-        <button className="btn primary lg" disabled={!parsed || !!state.busy} onClick={add}>
-          Add it to my day
+        <button className="btn primary lg" disabled={!parsed || !!state.busy || !state.app} onClick={add}>
+          {state.app ? "Add it to my day" : "Connecting…"}
         </button>
         <button className="link" onClick={onNext}>
           Skip for now
@@ -250,15 +249,18 @@ function You({ state, session, onNext }: { state: FreenotesState; session: Sessi
   const [start, setStart] = useState(first.start);
   const [end, setEnd] = useState(first.end);
   const [days, setDays] = useState<Set<Weekday>>(new Set(Object.keys(wh).map((k) => Number(k) as Weekday)));
+  const [saving, setSaving] = useState(false);
   const save = async () => {
-    const ok = await state.run("Saving…", async (app) => {
-      await app.updateProfile({ name: name || null });
+    setSaving(true);
+    try {
+      await state.updateProfile({ name: name || null });
       const spec: Partial<Record<Weekday, { start: LocalTime; end: LocalTime }>> = {};
       for (const d of days) spec[d] = { start: LocalTime.parse(start), end: LocalTime.parse(end) };
-      await app.updateSettings((s) => ({ ...s, workingHours: WorkingHours.of(spec) }));
-      return true;
-    });
-    if (ok) onNext();
+      await state.updateSettings((s) => ({ ...s, workingHours: WorkingHours.of(spec) }));
+      onNext();
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <div className="ob-screen">
@@ -313,7 +315,7 @@ function You({ state, session, onNext }: { state: FreenotesState; session: Sessi
         </div>
       </div>
       <div className="ob-actions">
-        <button className="btn primary lg" disabled={days.size === 0 || !!state.busy} onClick={save}>
+        <button className="btn primary lg" disabled={days.size === 0 || saving} onClick={save}>
           Continue
         </button>
       </div>
