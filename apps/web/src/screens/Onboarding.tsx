@@ -388,7 +388,7 @@ function Done({ state, style, onDone }: { state: FreenotesState; style: WorkingS
         <Summary label="Assistant" value={state.assistant?.online && state.assistant.status?.name !== "heuristic" ? state.assistant.label : "Built-in, offline"} />
         <Summary label="Captured" value={ws.todos.length === 0 ? "Nothing yet" : `${ws.todos.length} todo${ws.todos.length === 1 ? "" : "s"}`} />
       </div>
-      <p className="muted small" style={{ textAlign: "center" }}>Calendars, mail and issue trackers connect from the brief's setup card as they become available.</p>
+      <p className="muted small" style={{ textAlign: "center" }}>Connect your calendars from the brief's setup card; mail and issue trackers follow.</p>
       <div className="ob-actions">
         <button className="btn primary lg" onClick={onDone}>
           Open my brief

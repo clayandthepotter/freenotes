@@ -297,7 +297,7 @@ function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspa
           </button>
         </div>
       ))}
-      <div className="muted small">Calendars, mail and issue trackers: coming next.</div>
+      <div className="muted small">Mail and issue trackers: coming next.</div>
     </section>
   );
 }
