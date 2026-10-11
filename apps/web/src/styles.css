@@ -369,3 +369,7 @@ label.field > small { font-weight: 400; color: var(--muted); }
 .attn.person .k { background: var(--surface-2); color: var(--text-2); font-weight: 700; }
 .attn.person.cold .k { background: var(--danger-soft); color: var(--danger); }
 .attn.cold .k { background: var(--danger-soft); color: var(--danger); }
+.triage .q { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.triage .q-title { font-weight: 650; }
+.chips.wrap { flex-wrap: wrap; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }

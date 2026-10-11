@@ -20,10 +20,12 @@ import {
   recordResults,
   recordStepProgress,
   scheduleWorkspace,
+  triageTodo,
   updateProfile,
   type BuildScheduleInput,
   type CaptureBraindumpInput,
   type ConnectCalendarInput,
+  type TriageInput,
   type UseCaseDeps,
 } from "./use-cases.js";
 
@@ -66,6 +68,14 @@ export class Freenotes {
   async braindump(input: CaptureBraindumpInput) {
     const ws = await this.options.repository.load();
     const out = await captureBraindump(ws, input, this.deps);
+    await this.options.repository.save(out.workspace);
+    return out;
+  }
+
+  /** Answer the due-date and time-budget questions for one todo. */
+  async triage(input: TriageInput) {
+    const ws = await this.options.repository.load();
+    const out = await triageTodo(ws, input, this.deps);
     await this.options.repository.save(out.workspace);
     return out;
   }

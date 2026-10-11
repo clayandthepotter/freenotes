@@ -8,6 +8,7 @@ import { PlanDetail, PlanList } from "./screens/Plan.js";
 import { Review } from "./screens/Review.js";
 import { Onboarding } from "./screens/Onboarding.js";
 import { Settings } from "./screens/Settings.js";
+import { Triage } from "./screens/Triage.js";
 import { Brief } from "./screens/Today.js";
 import { nameFromEmail } from "./lib/brief.js";
 import { Icon } from "./ui/Icon.js";
@@ -52,6 +53,12 @@ export function App() {
     switch (route.tab) {
       case "today":
         body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} selfEmail={session.session?.user.email} />;
+        break;
+      case "triage":
+        title = "Quick questions";
+        subtitle = "When is it due, how long will it take";
+        onBack = () => back({ tab: "capture" });
+        body = <Triage state={state} workspace={ws} navigate={navigate} />;
         break;
       case "capture":
         title = "Capture";

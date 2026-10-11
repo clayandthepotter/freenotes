@@ -1,4 +1,4 @@
-import { formatDeadline, formatMinutes, type ResultStatus, type Todo } from "@freenotes/core";
+import { formatDeadline, formatMinutes, needsTriage, type ResultStatus, type Todo } from "@freenotes/core";
 import { Icon } from "./Icon.js";
 
 export function TodoCard({ todo, status, planned, onClick, trailing }: { todo: Todo; status?: ResultStatus | undefined; planned?: boolean | undefined; onClick?: (() => void) | undefined; trailing?: string | undefined }) {
@@ -14,8 +14,9 @@ export function TodoCard({ todo, status, planned, onClick, trailing }: { todo: T
         <div className="meta">
           <span className="mono">{todo.id}</span>
           {todo.priority !== "normal" && <span className={`pill ${todo.priority}`}>{todo.priority}</span>}
-          <span>{formatMinutes(todo.estimatedMinutes)}</span>
+          <span>{todo.estimateSource === "explicit" || todo.triagedAt ? formatMinutes(todo.estimatedMinutes) : "time?"}</span>
           {todo.deadline && <span>due {formatDeadline(todo)}</span>}
+          {needsTriage(todo) && !status && <span className="pill warn">needs answers</span>}
           {planned && (
             <span className="pill">
               <Icon name="list" size={11} /> plan

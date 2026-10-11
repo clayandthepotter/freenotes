@@ -4,10 +4,16 @@ import {
   DomainError,
   Freenotes,
   HeuristicChiefOfStaff,
+  LocalDate,
   LocalTime,
   TimeRange,
   WorkingHours,
   formatDay,
+  formatDeadline,
+  formatMinutes,
+  needsTriage,
+  parseDateExpression,
+  parseDuration,
   renderAchievementReport,
   renderExecutionPlan,
   renderSchedule,
@@ -15,6 +21,7 @@ import {
   type CalendarFeedFetcher,
   type ChiefOfStaff,
   type Composition,
+  type Deadline,
   type Weekday,
 } from "@freenotes/core";
 import { AnthropicChiefOfStaff, ChiefOfStaffError, type Effort } from "@freenotes/ai-anthropic";
@@ -37,6 +44,7 @@ Usage: freenotes <command> [options]
 
 Commands
   braindump [file]        Capture a bulleted list of things you must do (reads a file or stdin)
+  triage <T1> [options]   Answer the questions for one todo: --due "friday" | --no-deadline, --time 2h | --time assistant
   schedule                Build a time-blocked schedule for everything still open
   plan <T1|all>           Decompose a todo into step-by-step execution parameters
   step <T1> <n> [text]    Tick step n of a plan (--done / --undone) and/or write its answer inline
@@ -59,7 +67,11 @@ Options
   --effort <low|medium|high|xhigh|max>
   --profile "<text>"      Background about you for the assistant (or $FREENOTES_PROFILE)
   --title "<text>"        Title for the braindump composition
-  --no-refine             Skip assistant refinement when capturing a braindump
+  --refine                Let the chief of staff estimate and prioritise at capture (otherwise use triage)
+  --due "<when>"          Triage: the deadline ("friday", "oct 20", "tomorrow 3pm")
+  --no-deadline           Triage: no deadline, fit it in a gap
+  --time <2h|45m|assistant>
+                          Triage: the time budget, or let the assistant estimate
   --days <n>              Scheduling horizon in days
   --hours <HH:MM-HH:MM>   Working hours, e.g. 08:30-16:30
   --workdays <list>       Working days, e.g. mon-fri or mon,tue,thu
@@ -90,7 +102,10 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
         effort: { type: "string" },
         profile: { type: "string" },
         title: { type: "string" },
-        "no-refine": { type: "boolean" },
+        refine: { type: "boolean" },
+        due: { type: "string" },
+        "no-deadline": { type: "boolean" },
+        time: { type: "string" },
         done: { type: "boolean" },
         undone: { type: "boolean" },
         days: { type: "string" },
@@ -127,10 +142,34 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
     switch (command) {
       case "braindump": {
         const text = await readInput(rest[0], values.text, io);
-        const out = await app.braindump({ text, ...(values.title ? { title: values.title } : {}), refine: !values["no-refine"] });
+        const out = await app.braindump({ text, ...(values.title ? { title: values.title } : {}), refine: Boolean(values.refine) });
         io.stdout(`Captured ${out.todos.length} todo${out.todos.length === 1 ? "" : "s"} (chief of staff: ${app.assistantName}).\n\n${renderTodos(out.todos, out.refinements)}\n`);
         if (out.ignoredLines.length) io.stdout(`\nIgnored ${out.ignoredLines.length} non-todo line${out.ignoredLines.length === 1 ? "" : "s"}.\n`);
-        io.stdout(`\nNext: freenotes schedule\n`);
+        const asking = out.todos.filter(needsTriage);
+        io.stdout(asking.length ? `\nNext: say when each is due and how long to budget, e.g. freenotes triage ${asking[0]!.id} --due friday --time 2h\n` : `\nNext: freenotes schedule\n`);
+        return 0;
+      }
+      case "triage": {
+        const todoId = rest[0]?.toUpperCase();
+        if (!todoId) throw new DomainError("usage", 'Usage: freenotes triage <T1> [--due "friday" | --no-deadline] [--time 2h | --time assistant]');
+        const today = LocalDate.fromDate(new Date());
+        let deadline: Deadline | null | undefined;
+        if (values["no-deadline"]) deadline = null;
+        else if (values.due) {
+          deadline = parseDateExpression(values.due, today);
+          if (!deadline) throw new DomainError("usage", `Could not read a date from "${values.due}".`);
+        }
+        let estimate: number | "assistant" | undefined;
+        if (values.time === "assistant") estimate = "assistant";
+        else if (values.time) {
+          estimate = parseDuration(values.time);
+          if (!estimate) throw new DomainError("usage", `Could not read a duration from "${values.time}" (try 45m or 2h).`);
+        }
+        const out = await app.triage({ todoId, ...(deadline !== undefined ? { deadline } : {}), ...(estimate !== undefined ? { estimate } : {}) });
+        const t = out.todo;
+        io.stdout(`${t.id} ${t.title}: ${t.deadline ? `due ${formatDeadline(t)}` : "no deadline"}, ${formatMinutes(t.estimatedMinutes)}${t.estimateSource === "assistant" ? " (assistant estimate)" : t.estimateSource === "default" ? " (default)" : ""}.\n`);
+        const left = (await app.workspace()).todos.filter(needsTriage);
+        io.stdout(left.length ? `${left.length} left: ${left.map((x) => x.id).join(", ")}\n` : "All answered. Next: freenotes schedule\n");
         return 0;
       }
       case "schedule": {

@@ -1,4 +1,4 @@
-import { derivePeople, eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type Person, type StyleDimension, type Workspace } from "@freenotes/core";
+import { derivePeople, eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, needsTriage, TimeRange, type CalendarEvent, type Person, type StyleDimension, type Workspace } from "@freenotes/core";
 
 /** "Good morning, Clay." — the name is optional and already trimmed by the caller. */
 export function greeting(now: Date, name?: string): string {
@@ -68,7 +68,7 @@ export function summaryLine(ws: Workspace, now: Date): string {
   return `${blocksText}${meetingsText} today, ${formatMinutes(s.minutesToday)} planned.${light ? ` ${light}` : ""}${risk}`;
 }
 
-export type AttentionKind = "now" | "meeting" | "next" | "overdue" | "risk" | "unrecorded" | "unplanned" | "review" | "cold" | "capture";
+export type AttentionKind = "now" | "meeting" | "next" | "overdue" | "risk" | "unrecorded" | "triage" | "unplanned" | "review" | "cold" | "capture";
 
 /** Who the executive meets, from the calendar. The executive's own name and address are left out when known. */
 export function people(ws: Workspace, now: Date, selfEmail?: string): Person[] {
@@ -89,7 +89,7 @@ export interface AttentionItem {
  */
 const LEADS: Record<StyleDimension, readonly AttentionKind[]> = {
   triage: ["now", "meeting", "overdue", "risk", "next"],
-  capture: ["now", "meeting", "unrecorded", "unplanned", "capture"],
+  capture: ["now", "meeting", "triage", "unrecorded", "unplanned", "capture"],
   improve: ["now", "meeting", "review", "unrecorded"],
   align: ["now", "meeting", "cold", "risk", "next"],
 };
@@ -142,6 +142,8 @@ function rawAttention(ws: Workspace, now: Date): AttentionItem[] {
   for (const id of pastUnrecorded) items.push({ kind: "unrecorded", todoId: id, title: todo(id)?.title ?? id, detail: "Its time block has passed. Record what happened so your report stays honest." });
 
   const unplanned = ws.todos.filter((x) => !closed(x.id) && !ws.plans[x.id]);
+  const untriaged = ws.todos.filter((t) => !closed(t.id) && needsTriage(t));
+  if (untriaged.length > 0) items.push({ kind: "triage", title: `${untriaged.length} item${untriaged.length === 1 ? "" : "s"} waiting for a due date and time budget`, detail: "Two quick questions each. Nothing is assumed until you answer.", ...(untriaged.length === 1 ? { todoId: untriaged[0]!.id } : {}) });
   if (unplanned.length > 0) items.push({ kind: "unplanned", title: `${unplanned.length} todo${unplanned.length === 1 ? "" : "s"} without a plan`, detail: "A first action and steps make starting cheap. Plan them now.", ...(unplanned.length === 1 ? { todoId: unplanned[0]!.id } : {}) });
 
   if (ws.results.length > 0 && !ws.report) items.push({ kind: "review", title: "Outcomes recorded, no report yet", detail: "Compose the achievement report to see what to improve and answer reflections." });

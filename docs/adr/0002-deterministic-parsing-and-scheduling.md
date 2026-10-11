@@ -10,7 +10,7 @@ An LLM could parse the braindump and build the schedule directly. That is flexib
 
 - The braindump, date expressions and results are parsed by deterministic code in the domain. Same text, same todos, every time, offline.
 - The schedule is built by a deterministic algorithm (EDF for dated items, gap-fill for undated ones).
-- The chief of staff is consulted for judgement calls only: effort estimates and priority where the user gave none, decomposition into steps, and the achievement report.
+- The chief of staff is consulted for judgement calls only: decomposition into steps, the achievement report, and effort estimates when the user asks for one. Nothing is estimated on the user's behalf at capture; a triage step asks per item (amended 2026-10-11).
 - `applyRefinements` refuses to overwrite explicit user estimates; the UI shows the estimate source.
 
 ## Consequences

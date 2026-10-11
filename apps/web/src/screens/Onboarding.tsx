@@ -153,14 +153,14 @@ function TryIt({ state, onNext }: { state: FreenotesState; onNext: () => void })
   const [text, setText] = useState("");
   const parsed = useMemo(() => (text.trim() ? parseBraindump(text, { today: LocalDate.fromDate(new Date()) }).todos[0] : undefined), [text]);
   const add = async () => {
-    const out = await state.run("Adding it…", (app) => app.braindump({ text, refine: Boolean(state.assistant?.online) }));
+    const out = await state.run("Capturing…", (app) => app.braindump({ text, refine: false }));
     if (out) onNext();
   };
   return (
     <div className="ob-screen">
       <div className="ob-head">
         <h1>Try it right now</h1>
-        <p className="muted">Type one thing you must do. Watch it get structured as you type.</p>
+        <p className="muted">Type one thing you must do. Braindump first; when it is due and how long to budget come next, one question at a time.</p>
       </div>
       <input className="ob-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Finish the board deck by Friday ~2h" autoFocus autoCapitalize="sentences" />
       <div className="chips">
@@ -176,18 +176,18 @@ function TryIt({ state, onNext }: { state: FreenotesState; onNext: () => void })
             <div className="muted small">Understood as</div>
             <div className="t">{parsed.title}</div>
             <div className="chips">
-              <span className="chip">{parsed.deadline ? `due ${formatDeadline(parsed)}` : "no deadline, fits a gap"}</span>
-              <span className="chip">{formatMinutes(parsed.estimatedMinutes)}{parsed.estimateSource === "explicit" ? "" : " (estimate)"}</span>
-              <span className="chip">{parsed.priority} priority</span>
+              <span className="chip">{parsed.deadline ? `due ${formatDeadline(parsed)}` : "due date: you'll be asked"}</span>
+              <span className="chip">{parsed.estimateSource === "explicit" ? formatMinutes(parsed.estimatedMinutes) : "time budget: you'll be asked"}</span>
+              {parsed.priority !== "normal" && <span className="chip">{parsed.priority} priority</span>}
             </div>
           </>
         ) : (
-          <div className="muted">The deadline, effort and priority appear here.</div>
+          <div className="muted">What was understood appears here: a deadline if you wrote one, a time budget if you wrote one.</div>
         )}
       </div>
       <div className="ob-actions">
         <button className="btn primary lg" disabled={!parsed || !!state.busy || !state.app} onClick={add}>
-          {state.app ? "Add it to my day" : "Connecting…"}
+          {state.app ? "Capture it" : "Connecting…"}
         </button>
         <button className="link" onClick={onNext}>
           Skip for now

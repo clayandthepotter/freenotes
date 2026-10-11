@@ -11,7 +11,7 @@ import { busyRanges, CALENDAR_PALETTE, CalendarError, normaliseFeedUrl, type Cal
 import { parseIcs } from "../calendar/ics.js";
 import type { CalendarFeedFetcher } from "../ports/calendar-feeds.js";
 import type { ExternalIssue } from "../issues/issue.js";
-import { createTodo, type Priority } from "../planning/todo.js";
+import { createTodo, type Deadline, type Priority } from "../planning/todo.js";
 import { TimeRange } from "../shared/time-range.js";
 import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderStepNotes, renderTodos } from "../render/markdown.js";
 import { validateAchievementReport, type AchievementReport, type ReflectionAnswer } from "../review/achievement-report.js";
@@ -46,7 +46,7 @@ function context(deps: UseCaseDeps, workspace: Workspace): AssistantContext {
 export interface CaptureBraindumpInput {
   readonly text: string;
   readonly title?: string;
-  /** Ask the chief of staff to estimate/prioritise. Default true. */
+  /** Ask the chief of staff to estimate and prioritise straight away. Default false: nothing is assumed until the executive is asked. */
   readonly refine?: boolean;
 }
 
@@ -66,7 +66,7 @@ export async function captureBraindump(workspace: Workspace, input: CaptureBrain
 
   let todos = parsed.todos;
   let refinements: readonly TodoRefinement[] = [];
-  if (input.refine ?? true) {
+  if (input.refine ?? false) {
     refinements = await deps.chiefOfStaff.refineTodos({ todos, rawBraindump: input.text, context: ctx });
     todos = applyRefinements(todos, refinements);
   }
@@ -100,6 +100,49 @@ export function applyRefinements(todos: readonly Todo[], refinements: readonly T
       ...(r.clarifiedTitle?.trim() ? { title: r.clarifiedTitle.trim() } : {}),
     };
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1b. Triage: when is it due, how much time to budget
+
+export interface TriageInput {
+  readonly todoId: TodoId;
+  /** A deadline, or null for "no deadline, fit it in a gap". Omit to leave as is. */
+  readonly deadline?: Deadline | null;
+  /** Minutes to budget, or "assistant" to have the chief of staff estimate. Omit to leave as is. */
+  readonly estimate?: number | "assistant";
+  readonly priority?: Priority;
+}
+
+export interface TriageOutput {
+  readonly workspace: Workspace;
+  readonly todo: Todo;
+  readonly refinement?: TodoRefinement;
+}
+
+export async function triageTodo(workspace: Workspace, input: TriageInput, deps: UseCaseDeps): Promise<TriageOutput> {
+  const current = findTodo(workspace, input.todoId);
+  if (!current) throw new DomainError("unknown-todo", `No todo ${input.todoId}`);
+  let todo: Todo = { ...current, triagedAt: deps.clock.now() };
+  if (input.deadline !== undefined) {
+    const { deadline: _drop, ...rest } = todo;
+    todo = input.deadline ? { ...rest, deadline: input.deadline } : rest;
+  }
+  if (input.priority) todo = { ...todo, priority: input.priority };
+  let refinement: TodoRefinement | undefined;
+  if (typeof input.estimate === "number") {
+    if (!Number.isFinite(input.estimate) || input.estimate <= 0) throw new DomainError("invalid-estimate", "Budget a positive number of minutes.");
+    todo = { ...todo, estimatedMinutes: Math.round(input.estimate), estimateSource: "explicit" };
+  } else if (input.estimate === "assistant") {
+    // Asked explicitly, so an estimate written in the note is up for replacement too.
+    const [r] = await deps.chiefOfStaff.refineTodos({ todos: [{ ...todo, estimateSource: "default" }], rawBraindump: `- ${todo.title}`, context: context(deps, workspace) });
+    if (r?.estimatedMinutes && r.estimatedMinutes > 0) {
+      todo = { ...todo, estimatedMinutes: Math.round(r.estimatedMinutes), estimateSource: "assistant" };
+      refinement = r;
+    }
+  }
+  const todos = workspace.todos.map((t) => (t.id === todo.id ? todo : t));
+  return { workspace: { ...workspace, todos }, todo, ...(refinement ? { refinement } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------

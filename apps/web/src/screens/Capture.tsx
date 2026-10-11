@@ -16,7 +16,7 @@ const HINTS: Array<[string, string]> = [
 
 export function Capture({ state, workspace, navigate }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void }) {
   const [text, setText] = useState("");
-  const [refine, setRefine] = useState(true);
+  const [refine, setRefine] = useState(false);
   const [captured, setCaptured] = useState<string[]>();
   const area = useRef<HTMLTextAreaElement>(null);
   const statusOf = (id: string) => workspace.results.find((r) => r.todoId === id)?.status;
@@ -49,6 +49,7 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
     if (out) {
       setText("");
       setCaptured(out.todos.map((t) => t.id));
+      navigate({ tab: "triage" });
     }
   };
 
@@ -82,7 +83,7 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
         {dictation.error && <p className="muted small danger">{dictation.error}</p>}
         <label className="check">
           <input type="checkbox" checked={refine} onChange={(e) => setRefine(e.target.checked)} />
-          Let the chief of staff estimate and prioritise
+          Let the chief of staff estimate and prioritise right away (otherwise you are asked per item)
         </label>
         <div className="sticky-action">
           <button className="btn primary block" disabled={!text.trim() || !!state.busy || !state.app} onClick={capture}>
@@ -103,9 +104,9 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
       {captured && captured.length > 0 && (
         <div className="card accent stack">
           <h3>Captured {captured.length} todo{captured.length === 1 ? "" : "s"}</h3>
-          <p className="muted small">Next, put them on the calendar.</p>
-          <button className="btn primary" onClick={() => navigate({ tab: "today" })}>
-            Go to Today
+          <p className="muted small">Next, say when each is due and how long to budget.</p>
+          <button className="btn primary" onClick={() => navigate({ tab: "triage" })}>
+            Answer the questions
           </button>
         </div>
       )}

@@ -5,7 +5,7 @@
 Open source (MIT), local-first, mobile-first, installable as a PWA. Works fully offline with a built-in heuristic assistant; add an Anthropic API key and Claude takes the chief-of-staff seat.
 
 ```
-braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution plans
+braindump ──▶ triage (due? how long?) ──▶ schedule ──▶ execution plans
                                                           │
        reflection ◀── achievement report ◀── results ◀────┘
 ```
@@ -17,6 +17,7 @@ braindump ──▶ todos ──▶ time-blocked schedule ──▶ execution pl
   <img src="docs/screenshots/you.png" width="180" alt="Plug in your day: name and working hours" />
 </p>
 <p align="center">
+  <img src="docs/screenshots/triage.png" width="180" alt="Triage: when is it due, how much time to budget" />
   <img src="docs/screenshots/today.png" width="180" alt="The brief: greeting, week and time-blocked schedule" />
   <img src="docs/screenshots/attention.png" width="180" alt="What needs my attention right now" />
   <img src="docs/screenshots/plan.png" width="180" alt="A todo decomposed into steps" />
@@ -37,11 +38,12 @@ A new user is walked in before being asked for anything: meet the chief of staff
    - Book flights !low
    - Review PR #42 by tomorrow 3pm
    ```
-   The chief of staff estimates effort and sets priority where you did not. It never overrides what you typed.
-2. **Schedule.** Deadline items are placed earliest-deadline-first; undated items are fitted into the remaining gaps by priority. Long items are split into focus blocks with breaks. Deadlines that cannot be met are flagged, not hidden.
-3. **Plan.** Each todo is decomposed into execution parameters: objective, the literal first action, ordered steps with estimates, a definition of done, inputs to have at hand, and risks. You work the plan inside the app: tick steps off, and when a step asks for a sentence, a list or a decision, write it right there. Nothing has to be written down somewhere else.
-4. **Report.** You write a results composition (`T1: done — shipped Thursday`, `T2 partial …`, `T3 blocked on …`), or tap an outcome on the todo. Whatever you wrote while executing is attached to the results note automatically. The chief of staff composes an achievement report: achievements ordered by significance, areas to improve grounded in the evidence, and **one reflection question per completed todo**.
-5. **Reflect.** Answer the questions; the answers are kept with the report.
+   Capture is only capture: nothing is assumed about an item you did not describe.
+2. **Triage.** Each captured item gets two quick questions, one card at a time: when is it due (today, this week, a date, or no deadline) and how much time to budget (chips, your own number, or "let the assistant estimate"). Priority too. What you wrote in the braindump is kept and shown as "from your note"; the assistant only estimates when you ask it to.
+3. **Schedule.** Deadline items are placed earliest-deadline-first; undated items are fitted into the remaining gaps by priority. Long items are split into focus blocks with breaks. Deadlines that cannot be met are flagged, not hidden.
+4. **Plan.** Each todo is decomposed into execution parameters: objective, the literal first action, ordered steps with estimates, a definition of done, inputs to have at hand, and risks. You work the plan inside the app: tick steps off, and when a step asks for a sentence, a list or a decision, write it right there. Nothing has to be written down somewhere else.
+5. **Report.** You write a results composition (`T1: done — shipped Thursday`, `T2 partial …`, `T3 blocked on …`), or tap an outcome on the todo. Whatever you wrote while executing is attached to the results note automatically. The chief of staff composes an achievement report: achievements ordered by significance, areas to improve grounded in the evidence, and **one reflection question per completed todo**.
+6. **Reflect.** Answer the questions; the answers are kept with the report.
 
 Every artefact is a *composition* (a note), so you can read and search the whole history like any other note.
 
@@ -62,6 +64,7 @@ pnpm build
 alias freenotes="node $PWD/apps/cli/dist/bin.js"
 
 printf -- "- Finish the deck by Friday ~2h\n- Call the dentist\n" | freenotes braindump
+freenotes triage T2 --due tomorrow --time 20m        # or --no-deadline, --time assistant
 freenotes schedule --days 7 --hours 09:00-17:00 --workdays mon-fri
 freenotes plan all
 freenotes step T1 1 "A one-page memo for Priya, by Monday noon."   # write a step's answer inline

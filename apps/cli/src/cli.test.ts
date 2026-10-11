@@ -47,6 +47,17 @@ describe("freenotes CLI", () => {
     expect(await runCli(["braindump", dump, "--title", "Monday dump"], t.cli)).toBe(0);
     expect(t.out()).toContain("Captured 3 todos");
     expect(t.out()).toContain("| T1 | Finish Q4 budget deck |");
+    expect(t.out()).toContain("freenotes triage T");
+
+    t = io();
+    expect(await runCli(["triage", "t2", "--due", "friday", "--time", "20m"], t.cli)).toBe(0);
+    expect(t.out()).toMatch(/T2 .*: due Fri .*, 20m\./);
+    t = io();
+    expect(await runCli(["triage", "T3", "--no-deadline", "--time", "assistant"], t.cli)).toBe(0);
+    expect(t.out()).toContain("(assistant estimate)");
+    t = io();
+    expect(await runCli(["triage", "T1", "--time", "soon"], t.cli)).toBe(1);
+    expect(t.err()).toContain("duration");
 
     t = io();
     expect(await runCli(["schedule", "--days", "7", "--hours", "08:00-12:00", "--workdays", "mon-fri"], t.cli)).toBe(0);

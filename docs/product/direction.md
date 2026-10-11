@@ -64,6 +64,10 @@ freenotes becomes the one place an executive looks. Everything that competes for
 - **Scheduled jobs** are server cron on the hosted API (Vercel cron) running sync, the morning brief and the Friday draft under each user's stored policies; a self-hosted API is the "custom relay".
 - **Budget** is out of scope for the next milestones; the composition model can absorb it later as an `expense` kind.
 
+## Capture, then ask (2026-10-11)
+
+Braindump first, organise second. Capture never assumes: an item without a deadline or a time budget in the note is asked, one card at a time, when it is due and how long to budget, with "let the assistant estimate" as an explicit choice. Only then does scheduling and step decomposition begin. The onboarding "try it" step captures and says so; it does not promise a place on the day.
+
 ## Principles
 
 1. **Never leave the app.** Reading, replying, scheduling, delegating and logging happen inside freenotes. External tools are sources and sinks, not destinations.

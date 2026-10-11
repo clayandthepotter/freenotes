@@ -8,7 +8,7 @@ freenotes is built domain-first. The domain model is a plain TypeScript library 
 |---|---|
 | **Composition** | A note. Every artefact of the loop is a composition of a given *kind*: `braindump`, `schedule`, `execution-plan`, `results`, `achievement-report`, or a plain `note`. |
 | **Braindump** | A composition the executive writes: one commitment per line, with optional deadline ("by Friday"), effort ("~2h") and priority ("[high]", "!low"). |
-| **Todo** | A commitment extracted from a braindump. Has a stable code (`T1`), title, priority, estimated minutes with an *estimate source* (`explicit` / `default` / `assistant`), and an optional **Deadline**. |
+| **Todo** | A commitment extracted from a braindump. Has a stable code (`T1`), title, priority, estimated minutes with an *estimate source* (`explicit` / `default` / `assistant`), and an optional **Deadline**. A todo *needs triage* until the executive has answered, or declined, the due-date and time-budget questions. |
 | **Deadline** | A calendar date plus optional wall-clock time. A date-only deadline means "end of that working day". |
 | **Working hours** | Per-weekday windows in which the executive accepts time blocks. |
 | **Schedule** | A set of **time blocks** (todo × time range × part n/m) over a horizon, plus **warnings** (`deadline-at-risk`, `deadline-passed`) and **unscheduled** remainders. |

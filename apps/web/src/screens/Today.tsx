@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, TimeRange, type CalendarEvent, type TimeBlock, type Todo, type Workspace } from "@freenotes/core";
+import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, needsTriage, TimeRange, type CalendarEvent, type TimeBlock, type Todo, type Workspace } from "@freenotes/core";
 import { attention, greeting, people as derive, summaryLine, type AttentionItem } from "../lib/brief.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
 import { Icon } from "../ui/Icon.js";
@@ -22,6 +22,7 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, s
   const todoById = useMemo(() => new Map(workspace.todos.map((t) => [t.id, t] as const)), [workspace.todos]);
   const statusOf = (id: string) => workspace.results.find((r) => r.todoId === id)?.status;
   const open = workspace.todos.filter((t) => !["done", "skipped"].includes(statusOf(t.id) ?? ""));
+  const untriaged = open.filter(needsTriage);
 
   // Rolling seven-day strip from today; days with work get a pip.
   const start = LocalDate.fromDate(now);
@@ -53,6 +54,8 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, s
         return navigate({ tab: "review" });
       case "unplanned":
         return navigate(item.todoId ? { tab: "plan", id: item.todoId } : { tab: "plan" });
+      case "triage":
+        return navigate({ tab: "triage" });
       case "unrecorded":
         return setPicked(item.todoId ? todoById.get(item.todoId) : undefined);
       default:
@@ -108,10 +111,28 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, s
           <h2>
             {open.length} thing{open.length === 1 ? "" : "s"} to place
           </h2>
-          <p className="muted">Deadlines go first; everything else fills the gaps between them.</p>
-          <button className="btn primary" disabled={!!state.busy} onClick={build}>
-            Build my schedule
-          </button>
+          {untriaged.length > 0 ? (
+            <>
+              <p className="muted">
+                {untriaged.length === open.length ? "Each" : `${untriaged.length} of them`} still need{untriaged.length === 1 ? "s" : ""} a due date and a time budget. Two quick questions per item; nothing is assumed for you.
+              </p>
+              <div className="btn-row">
+                <button className="btn primary" onClick={() => navigate({ tab: "triage" })}>
+                  Answer {untriaged.length} quick question{untriaged.length === 1 ? "" : "s"}
+                </button>
+                <button className="btn outline" disabled={!!state.busy} onClick={build}>
+                  Build anyway
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted">Deadlines go first; everything else fills the gaps between them.</p>
+              <button className="btn primary" disabled={!!state.busy} onClick={build}>
+                Build my schedule
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <>

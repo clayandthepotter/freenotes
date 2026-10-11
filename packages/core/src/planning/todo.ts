@@ -33,6 +33,17 @@ export interface Todo {
   readonly notes?: string;
   /** Set when the todo mirrors an issue in an external tracker. */
   readonly external?: ExternalLink;
+  /** Set once the executive has answered (or declined) the due-date and time-budget questions. */
+  readonly triagedAt?: Date;
+}
+
+/**
+ * A freshly captured todo is only a line of text. Before it is scheduled the executive is asked
+ * when it is due and how much time to budget; nothing is assumed on their behalf until they say so.
+ */
+export function needsTriage(todo: Todo): boolean {
+  if (todo.triagedAt) return false;
+  return todo.estimateSource !== "explicit" || !todo.deadline;
 }
 
 export interface TodoDraft {
@@ -42,6 +53,7 @@ export interface TodoDraft {
   deadline?: Deadline;
   notes?: string;
   external?: ExternalLink;
+  triagedAt?: Date;
 }
 
 export function createTodo(id: TodoId, order: number, draft: TodoDraft): Todo {
@@ -60,6 +72,7 @@ export function createTodo(id: TodoId, order: number, draft: TodoDraft): Todo {
     ...(draft.deadline ? { deadline: draft.deadline } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
     ...(draft.external ? { external: draft.external } : {}),
+    ...(draft.triagedAt ? { triagedAt: draft.triagedAt } : {}),
   };
   return todo;
 }

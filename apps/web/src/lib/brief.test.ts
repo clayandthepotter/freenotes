@@ -4,6 +4,8 @@ import { scoreWorkingStyle, WORKING_STYLE_QUIZ } from "@freenotes/core";
 import { attention, greeting, nameFromEmail, summaryLine } from "./brief.js";
 
 const monday9 = new Date(2026, 9, 12, 9, 0);
+/** Fixtures are past the triage questions unless a test says otherwise. */
+const triaged = (...args: Parameters<typeof createTodo>) => ({ ...createTodo(...args), triagedAt: monday9 });
 const base = emptyWorkspace();
 
 function withSchedule(todos: Workspace["todos"], from = monday9): Workspace {
@@ -26,14 +28,14 @@ describe("greeting", () => {
 describe("summaryLine", () => {
   it("covers empty, unscheduled, scheduled and clear days", () => {
     expect(summaryLine(base, monday9)).toMatch(/Nothing captured/);
-    const todos = [createTodo("T1", 0, { title: "a", estimatedMinutes: 60 }), createTodo("T2", 1, { title: "b", estimatedMinutes: 30 })];
+    const todos = [triaged("T1", 0, { title: "a", estimatedMinutes: 60 }), triaged("T2", 1, { title: "b", estimatedMinutes: 30 })];
     expect(summaryLine({ ...base, todos }, monday9)).toBe("2 things waiting to be placed on the calendar.");
     expect(summaryLine(withSchedule(todos), monday9)).toBe("2 focus blocks today, 1h 30m planned. Light day.");
     const saturday = new Date(2026, 9, 10, 9);
     expect(summaryLine(withSchedule(todos, saturday), saturday)).toBe("Clear today. Next focus block Mon 12 Oct.");
   });
   it("mentions deadlines at risk", () => {
-    const todos = [createTodo("T1", 0, { title: "late", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } })];
+    const todos = [triaged("T1", 0, { title: "late", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } })];
     expect(summaryLine(withSchedule(todos), monday9)).toMatch(/One deadline at risk\.$/);
   });
 });
@@ -41,8 +43,8 @@ describe("summaryLine", () => {
 describe("attention", () => {
   it("ranks the current block, risks, next block, and unplanned work", () => {
     const todos = [
-      createTodo("T1", 0, { title: "Deck", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } }),
-      createTodo("T2", 1, { title: "Call", estimatedMinutes: 30 }),
+      triaged("T1", 0, { title: "Deck", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } }),
+      triaged("T2", 1, { title: "Call", estimatedMinutes: 30 }),
     ];
     const ws = withSchedule(todos);
     const items = attention(ws, new Date(2026, 9, 12, 9, 15));
@@ -50,11 +52,11 @@ describe("attention", () => {
     expect(items[0]).toMatchObject({ todoId: "T1", title: "Deck" });
     const later = attention(ws, new Date(2026, 9, 12, 8, 0));
     expect(later.map((i) => i.kind)).toEqual(["risk", "unplanned"]); // "next" is the same todo as the risk, so it is not repeated
-    const noRisk = withSchedule([createTodo("T2", 0, { title: "Call", estimatedMinutes: 30 })]);
+    const noRisk = withSchedule([triaged("T2", 0, { title: "Call", estimatedMinutes: 30 })]);
     expect(attention(noRisk, new Date(2026, 9, 12, 8, 0)).map((i) => i.kind)).toEqual(["next", "unplanned"]);
   });
   it("asks for outcomes on past blocks and a report once outcomes exist", () => {
-    const todos = [createTodo("T1", 0, { title: "a", estimatedMinutes: 30 })];
+    const todos = [triaged("T1", 0, { title: "a", estimatedMinutes: 30 })];
     const ws = withSchedule(todos);
     expect(attention(ws, new Date(2026, 9, 12, 12)).map((i) => i.kind)).toEqual(["unrecorded", "unplanned"]);
     const recorded = { ...ws, results: [{ todoId: "T1", status: "done" as const, notes: "" }] };
@@ -63,8 +65,8 @@ describe("attention", () => {
 
   it("lets the working style decide what leads", () => {
     const todos = [
-      createTodo("T1", 0, { title: "late", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } }),
-      createTodo("T2", 1, { title: "unplanned", estimatedMinutes: 30 }),
+      triaged("T1", 0, { title: "late", estimatedMinutes: 60, deadline: { date: LocalDate.parse("2026-10-12"), time: LocalTime.of(9, 30) } }),
+      triaged("T2", 1, { title: "unplanned", estimatedMinutes: 30 }),
     ];
     const ws: Workspace = { ...withSchedule(todos), results: [{ todoId: "T1", status: "partial", notes: "" }] };
     const neutral = attention(ws, monday9).map((i) => i.kind);
@@ -74,5 +76,12 @@ describe("attention", () => {
     expect(capture[0]).toBe("now");
     expect(capture.indexOf("unplanned")).toBeLessThan(capture.indexOf("risk"));
     expect(new Set(capture)).toEqual(new Set(neutral));
+  });
+
+  it("asks for due dates and budgets before anything else is planned", () => {
+    const fresh = createTodo("T1", 0, { title: "untriaged", estimatedMinutes: 60 });
+    const kinds = attention({ ...base, todos: [fresh] }, monday9).map((i) => i.kind);
+    expect(kinds).toContain("triage");
+    expect(attention({ ...base, todos: [{ ...fresh, triagedAt: monday9 }] }, monday9).map((i) => i.kind)).not.toContain("triage");
   });
 });

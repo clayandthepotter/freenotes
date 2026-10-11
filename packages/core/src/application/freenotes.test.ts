@@ -26,7 +26,7 @@ describe("Freenotes end-to-end (heuristic chief of staff)", () => {
   it("runs the whole loop: braindump → schedule → plan → report → reflect", async () => {
     const fn = app();
 
-    const captured = await fn.braindump({ text: BRAINDUMP });
+    const captured = await fn.braindump({ text: BRAINDUMP, refine: true });
     expect(captured.todos.map((t) => t.id)).toEqual(["T1", "T2", "T3", "T4", "T5"]);
     expect(captured.todos[1]).toMatchObject({ title: "Call the dentist", estimatedMinutes: 20, estimateSource: "assistant" });
     expect(captured.todos[0]).toMatchObject({ estimatedMinutes: 120, estimateSource: "explicit" }); // explicit estimates are never overridden
@@ -96,6 +96,35 @@ T5 blocked on CI
     const composed = await fn.compose();
     expect(composed.report.reflections.map((r) => r.todoId)).toEqual(["T1"]);
     expect((await fn.workspace()).results.map((r) => r.status)).toEqual(["done", "skipped"]);
+  });
+
+  it("assumes nothing at capture, then asks per item: due date and time budget", async () => {
+    const fn = app();
+    const { needsTriage } = await import("../planning/todo.js");
+    const captured = await fn.braindump({ text: "- Update website by Friday\n- Call the dentist ~15m\n- Draft the memo" });
+    expect(captured.refinements).toEqual([]);
+    expect(captured.todos.map((t) => [t.id, t.estimateSource, needsTriage(t)])).toEqual([
+      ["T1", "default", true], // has a deadline, no time budget yet
+      ["T2", "explicit", true], // has a budget, no deadline decision yet
+      ["T3", "default", true],
+    ]);
+    const { LocalDate } = await import("../shared/local-date.js");
+    const t1 = await fn.triage({ todoId: "T1", estimate: 120 });
+    expect(t1.todo).toMatchObject({ estimatedMinutes: 120, estimateSource: "explicit" });
+    expect(needsTriage(t1.todo)).toBe(false);
+    const t2 = await fn.triage({ todoId: "T2", deadline: null });
+    expect(t2.todo.deadline).toBeUndefined();
+    expect(needsTriage(t2.todo)).toBe(false);
+    const t3 = await fn.triage({ todoId: "T3", deadline: { date: LocalDate.parse("2026-10-20") }, estimate: "assistant", priority: "high" });
+    expect(t3.todo).toMatchObject({ estimateSource: "assistant", priority: "high" });
+    expect(t3.todo.estimatedMinutes).toBeGreaterThan(0);
+    expect(t3.refinement?.todoId).toBe("T3");
+    await expect(fn.triage({ todoId: "T9", estimate: 10 })).rejects.toThrow(/No todo T9/);
+    await expect(fn.triage({ todoId: "T1", estimate: 0 })).rejects.toThrow(/positive/);
+    const ws = await fn.workspace();
+    expect(ws.todos.every((t) => !needsTriage(t))).toBe(true);
+    const { deserializeWorkspace, serializeWorkspace } = await import("../workspace/codec.js");
+    expect(deserializeWorkspace(JSON.parse(JSON.stringify(serializeWorkspace(ws)))).todos[0]!.triagedAt).toEqual(new Date(2026, 9, 12, 9, 0));
   });
 
   it("can skip refinement", async () => {
