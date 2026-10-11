@@ -24,6 +24,7 @@ export interface WorkspaceSnapshot {
     estimateSource: string;
     deadline?: { date: string; time?: string };
     notes?: string;
+    external?: { source: "linear"; id: string; identifier: string; url: string };
   }>;
   schedule?: {
     generatedAt: string;
@@ -62,6 +63,7 @@ export function serializeTodo(t: Todo): TodoSnapshot {
     estimateSource: t.estimateSource,
     ...(t.deadline ? { deadline: { date: t.deadline.date.toString(), ...(t.deadline.time ? { time: t.deadline.time.toString() } : {}) } } : {}),
     ...(t.notes ? { notes: t.notes } : {}),
+    ...(t.external ? { external: { ...t.external } } : {}),
   };
 }
 
@@ -75,6 +77,7 @@ export function deserializeTodo(t: TodoSnapshot): Todo {
     estimateSource: t.estimateSource as Todo["estimateSource"],
     ...(t.deadline ? { deadline: { date: LocalDate.parse(t.deadline.date), ...(t.deadline.time ? { time: LocalTime.parse(t.deadline.time) } : {}) } } : {}),
     ...(t.notes ? { notes: t.notes } : {}),
+    ...(t.external ? { external: { ...t.external } } : {}),
   };
 }
 

@@ -99,8 +99,8 @@ The existing planning, execution, review and composition contexts stay. Today's 
 2. **Calendar.** First half shipped 2026-10-11 without OAuth: any number of ICS feeds (Google, Outlook, iCloud all publish one), events on the brief's timeline, meetings in the day's read and the attention sheet, busy ranges into the scheduler, a server-side proxy with public-host guards, CLI commands. Still to do, and needing OAuth clients: Google and Microsoft as first-class sources with write-back of focus blocks, plus 3-day and month views.
 3. **Inbox.** Gmail and Outlook threads as inbox items, triage states, commitment extraction into todos, drafted replies by the chief of staff.
 4. **People.** Derived contacts, cadence, "going cold" surfaced in the brief.
-5. **Issues.** Linear as a source and a sink.
-6. **Voice capture** on every tab.
+5. **Issues.** Linear as a source shipped 2026-10-11 with a personal API key (no OAuth needed): assigned issues become todos with due date, estimate and priority; closing in Linear closes here; key stored encrypted per account or kept in the browser. Still to do: Linear as a sink (status write-back) and OAuth for teams.
+6. **Voice capture.** Shipped 2026-10-11 on the Capture screen through the browser's speech recognition. Still to do: the floating button on every tab.
 
 Each step ships behind the existing verify pipeline with tests at the domain layer first.
 

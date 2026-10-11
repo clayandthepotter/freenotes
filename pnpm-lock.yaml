@@ -26,6 +26,9 @@ importers:
       '@freenotes/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@freenotes/source-linear':
+        specifier: workspace:*
+        version: link:../../packages/source-linear
       '@freenotes/storage-fs':
         specifier: workspace:*
         version: link:../../packages/storage-fs
@@ -38,6 +41,9 @@ importers:
       '@freenotes/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@freenotes/source-linear':
+        specifier: workspace:*
+        version: link:../../packages/source-linear
       '@freenotes/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -159,11 +165,20 @@ importers:
       '@freenotes/core':
         specifier: workspace:*
         version: link:../core
+      '@freenotes/source-linear':
+        specifier: workspace:*
+        version: link:../source-linear
       hono:
         specifier: ^4.13.13
         version: 4.13.13
 
   packages/core: {}
+
+  packages/source-linear:
+    dependencies:
+      '@freenotes/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/storage-fs:
     dependencies:

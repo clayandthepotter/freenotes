@@ -68,6 +68,10 @@ export function Settings({ state, session, workspace, focus }: { state: Freenote
         </div>
       </Group>
 
+      <Group caption="Work">
+        <LinearCard state={state} signedIn={signedIn} autoFocus={focus === "linear"} />
+      </Group>
+
       <Group caption="Calendar & time">
         <CalendarsCard state={state} workspace={workspace} autoFocus={focus === "calendars"} />
         <SchedulePrefs state={state} workspace={workspace} />
@@ -508,6 +512,72 @@ function CalendarsCard({ state, workspace, autoFocus }: { state: FreenotesState;
       <button className="btn primary" disabled={!url.trim() || !!state.busy} onClick={connect}>
         Connect calendar
       </button>
+    </div>
+  );
+}
+
+function LinearCard({ state, signedIn, autoFocus }: { state: FreenotesState; signedIn: boolean; autoFocus: boolean }) {
+  const [key, setKey] = useState("");
+  const [result, setResult] = useState<string>();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (autoFocus) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [autoFocus]);
+  const api = state.assistant?.api;
+  const connected = state.linearConnected;
+  const save = async () => {
+    setResult(undefined);
+    if (signedIn && api) {
+      await state.run("Saving Linear key…", async () => {
+        await api.saveSettings({ linearApiKey: key.trim() });
+      });
+      state.refreshIntegrations();
+    } else state.setLocalLinearKey(key.trim());
+    setKey("");
+    setResult("Connected. Pull your issues whenever you like; completed ones close their todos.");
+  };
+  const disconnect = async () => {
+    if (signedIn && api) {
+      await state.run("Removing Linear key…", async () => {
+        await api.saveSettings({ linearApiKey: null });
+      });
+      state.refreshIntegrations();
+    } else state.setLocalLinearKey(undefined);
+    setResult(undefined);
+  };
+  const pull = async () => {
+    const out = await state.run("Pulling issues from Linear…", (app) => app.importIssues());
+    if (out) setResult(`Saw ${out.seen} issue${out.seen === 1 ? "" : "s"}: ${out.added.length} new todo${out.added.length === 1 ? "" : "s"}, ${out.closed.length} closed.`);
+  };
+  return (
+    <div className="card stack" ref={ref} id="linear">
+      <div className="row between">
+        <h3>Linear</h3>
+        {connected && <span className="pill done">connected</span>}
+      </div>
+      <p className="muted small">The issues assigned to you become todos with their due dates, estimates and priority; when you complete or cancel one in Linear, its todo closes here. Nothing is written back. {signedIn ? "The key is stored encrypted on the server." : "Not signed in, so the key stays in this browser and travels with each pull."}</p>
+      {connected ? (
+        <div className="btn-row">
+          <button className="btn primary" disabled={!!state.busy} onClick={pull}>
+            <Icon name="refresh" size={16} /> Pull my issues
+          </button>
+          <button className="btn outline" disabled={!!state.busy} onClick={disconnect}>
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <>
+          <label className="field">
+            Personal API key
+            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="lin_api_…" autoCapitalize="off" autoCorrect="off" />
+            <small>Linear → Settings → Security &amp; access → Personal API keys. Read access is enough.</small>
+          </label>
+          <button className="btn primary" disabled={!key.trim() || !!state.busy} onClick={save}>
+            Connect Linear
+          </button>
+        </>
+      )}
+      {result && <p className="muted small">{result}</p>}
     </div>
   );
 }

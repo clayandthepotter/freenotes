@@ -10,6 +10,8 @@ import { applyProfilePatch, describeProfile, type Profile, type ProfilePatch } f
 import { busyRanges, CALENDAR_PALETTE, CalendarError, normaliseFeedUrl, type CalendarEvent, type ConnectedCalendar } from "../calendar/calendar.js";
 import { parseIcs } from "../calendar/ics.js";
 import type { CalendarFeedFetcher } from "../ports/calendar-feeds.js";
+import type { ExternalIssue } from "../issues/issue.js";
+import { createTodo, type Priority } from "../planning/todo.js";
 import { TimeRange } from "../shared/time-range.js";
 import { renderAchievementReport, renderExecutionPlan, renderResults, renderSchedule, renderStepNotes, renderTodos } from "../render/markdown.js";
 import { validateAchievementReport, type AchievementReport, type ReflectionAnswer } from "../review/achievement-report.js";
@@ -326,4 +328,71 @@ export async function syncCalendars(workspace: Workspace, deps: Pick<UseCaseDeps
     }
   }
   return { workspace: { ...workspace, calendar: { calendars, events, window } }, synced, failed };
+}
+
+// ---------------------------------------------------------------------------------------------
+// 9. Issues from an external tracker become todos; work closed there closes here
+
+export interface ImportIssuesOutput {
+  readonly workspace: Workspace;
+  readonly added: readonly Todo[];
+  readonly closed: readonly TodoId[];
+  readonly composition?: Composition;
+}
+
+const ISSUE_PRIORITY: Record<ExternalIssue["priority"], Priority> = { 0: "normal", 1: "high", 2: "high", 3: "normal", 4: "low" };
+
+/**
+ * Mirrors the issues assigned to the executive. New open issues become todos (code, title, due
+ * date, estimate from points, priority); issues already mirrored are left alone, except that one
+ * completed or cancelled in the tracker records a result here. Nothing is ever written back.
+ */
+export function importIssues(workspace: Workspace, issues: readonly ExternalIssue[], deps: Pick<UseCaseDeps, "clock" | "ids">, options: { minutesPerPoint?: number } = {}): ImportIssuesOutput {
+  const minutesPerPoint = options.minutesPerPoint ?? 60;
+  const byExternal = new Map(workspace.todos.filter((t) => t.external).map((t) => [`${t.external!.source}:${t.external!.id}`, t] as const));
+  const resultOf = (id: TodoId) => workspace.results.find((r) => r.todoId === id);
+  const added: Todo[] = [];
+  const closed: TodoId[] = [];
+  let results = [...workspace.results];
+  let next = nextTodoNumber(workspace);
+
+  for (const issue of issues) {
+    const existing = byExternal.get(`${issue.source}:${issue.id}`);
+    const open = issue.state === "todo" || issue.state === "in-progress";
+    if (existing) {
+      if (!open && !["done", "skipped"].includes(resultOf(existing.id)?.status ?? "")) {
+        const status = issue.state === "done" ? "done" : "skipped";
+        results = [...results.filter((r) => r.todoId !== existing.id), { todoId: existing.id, status, notes: `${issue.identifier} ${status === "done" ? "completed" : "cancelled"} in ${issue.source}` }];
+        closed.push(existing.id);
+      }
+      continue;
+    }
+    if (!open) continue;
+    const todo = createTodo(`T${next++}`, workspace.todos.length + added.length, {
+      title: `${issue.identifier} ${issue.title}`,
+      priority: ISSUE_PRIORITY[issue.priority],
+      ...(issue.estimatePoints ? { estimatedMinutes: Math.max(15, Math.round(issue.estimatePoints * minutesPerPoint)) } : {}),
+      ...(issue.dueDate ? { deadline: { date: issue.dueDate } } : {}),
+      notes: [issue.project ? `Project: ${issue.project}` : "", issue.url].filter(Boolean).join("\n"),
+      external: { source: issue.source, id: issue.id, identifier: issue.identifier, url: issue.url },
+    });
+    added.push(todo);
+  }
+
+  let ws: Workspace = { ...workspace, todos: [...workspace.todos, ...added], results };
+  let composition: Composition | undefined;
+  if (added.length > 0 || closed.length > 0) {
+    const lines = [
+      ...added.map((t) => `- ${t.title}${t.deadline ? ` by ${t.deadline.date.toString()}` : ""} ~${t.estimatedMinutes}m [${t.priority}]`),
+      ...closed.map((id) => `- ${id} closed in the tracker`),
+    ];
+    composition = createComposition(deps.ids.next(), deps.clock.now(), {
+      kind: "braindump",
+      title: `Imported from ${issues[0]?.source ?? "tracker"} · ${LocalDate.fromDate(deps.clock.now())}`,
+      body: `${lines.join("\n")}\n\n---\n\n${renderTodos(added)}`,
+      todoIds: [...added.map((t) => t.id), ...closed],
+    });
+    ws = withComposition(ws, composition);
+  }
+  return { workspace: ws, added, closed, ...(composition ? { composition } : {}) };
 }

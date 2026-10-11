@@ -25,6 +25,8 @@ export interface AssistantSettings {
   readonly baseUrl?: string;
   readonly apiKeyCiphertext?: string;
   readonly apiKeyLast4?: string;
+  readonly linearApiKeyCiphertext?: string;
+  readonly linearApiKeyLast4?: string;
   readonly updatedAt?: string;
 }
 

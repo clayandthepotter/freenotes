@@ -1,3 +1,4 @@
+import type { ExternalIssue } from "@freenotes/core";
 import {
   deserializeSchedule,
   deserializeTodo,
@@ -62,7 +63,31 @@ export const ROUTES = {
   settings: "/api/settings",
   verify: "/api/verify",
   ics: "/api/ics",
+  issues: "/api/issues",
 } as const;
+
+/** An external issue on the wire: dates as ISO strings. */
+export interface IssueWire {
+  source: "linear";
+  id: string;
+  identifier: string;
+  title: string;
+  url: string;
+  state: "todo" | "in-progress" | "done" | "cancelled";
+  dueDate?: string;
+  estimatePoints?: number;
+  priority: 0 | 1 | 2 | 3 | 4;
+  project?: string;
+}
+export type IssuesResponse = { source: string; issues: IssueWire[] };
+
+export function issueToWire(i: ExternalIssue): IssueWire {
+  return { source: i.source, id: i.id, identifier: i.identifier, title: i.title, url: i.url, state: i.state, priority: i.priority, ...(i.dueDate ? { dueDate: i.dueDate.toString() } : {}), ...(i.estimatePoints !== undefined ? { estimatePoints: i.estimatePoints } : {}), ...(i.project ? { project: i.project } : {}) };
+}
+
+export function issueFromWire(w: IssueWire): ExternalIssue {
+  return { source: w.source, id: w.id, identifier: w.identifier, title: w.title, url: w.url, state: w.state, priority: w.priority, ...(w.dueDate ? { dueDate: LocalDate.parse(w.dueDate) } : {}), ...(w.estimatePoints !== undefined ? { estimatePoints: w.estimatePoints } : {}), ...(w.project ? { project: w.project } : {}) };
+}
 
 export interface StatusResponse {
   available: boolean;
@@ -81,6 +106,9 @@ export interface SettingsView {
   baseUrl?: string;
   hasApiKey: boolean;
   apiKeyLast4?: string;
+  /** Linear personal API key, stored encrypted; only its presence and last four come back. */
+  hasLinearKey: boolean;
+  linearKeyLast4?: string;
   updatedAt?: string;
 }
 
@@ -91,6 +119,8 @@ export interface SettingsPatch {
   model?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  /** null clears the stored Linear key. */
+  linearApiKey?: string | null;
 }
 
 export interface ProviderView {

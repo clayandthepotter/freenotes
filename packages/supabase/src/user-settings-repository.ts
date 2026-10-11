@@ -10,6 +10,8 @@ interface Row {
   base_url: string | null;
   api_key_ciphertext: string | null;
   api_key_last4: string | null;
+  linear_api_key_ciphertext: string | null;
+  linear_api_key_last4: string | null;
   updated_at: string;
 }
 
@@ -23,7 +25,7 @@ export class SupabaseUserSettingsRepository implements UserSettingsRepository {
   async get(ctx: AuthContext): Promise<AssistantSettings | null> {
     const { data, error } = await this.clientFor(ctx)
       .from("user_settings")
-      .select("user_id, profile, provider, model, base_url, api_key_ciphertext, api_key_last4, updated_at")
+      .select("user_id, profile, provider, model, base_url, api_key_ciphertext, api_key_last4, linear_api_key_ciphertext, linear_api_key_last4, updated_at")
       .eq("user_id", ctx.user.id)
       .maybeSingle<Row>();
     if (error) throw new Error(`Could not load settings: ${error.message}`);
@@ -44,6 +46,8 @@ export function fromRow(row: Row): AssistantSettings {
     ...(row.base_url ? { baseUrl: row.base_url } : {}),
     ...(row.api_key_ciphertext ? { apiKeyCiphertext: row.api_key_ciphertext } : {}),
     ...(row.api_key_last4 ? { apiKeyLast4: row.api_key_last4 } : {}),
+    ...(row.linear_api_key_ciphertext ? { linearApiKeyCiphertext: row.linear_api_key_ciphertext } : {}),
+    ...(row.linear_api_key_last4 ? { linearApiKeyLast4: row.linear_api_key_last4 } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
   };
 }
@@ -57,5 +61,7 @@ export function toRow(userId: string, s: AssistantSettings): Omit<Row, "updated_
     base_url: s.baseUrl ?? null,
     api_key_ciphertext: s.apiKeyCiphertext ?? null,
     api_key_last4: s.apiKeyLast4 ?? null,
+    linear_api_key_ciphertext: s.linearApiKeyCiphertext ?? null,
+    linear_api_key_last4: s.linearApiKeyLast4 ?? null,
   };
 }

@@ -106,6 +106,14 @@ freenotes calendar sync
 freenotes calendar          # list
 ```
 
+### Issues from Linear
+
+Connect Linear with a personal API key (Settings → Security & access) and pull the issues assigned to you: each becomes a todo with its due date, estimate (points become hours) and priority, linked back to the issue. Pull again any time; issues you complete or cancel in Linear close their todos here. Nothing is written to Linear. Signed in, the key is stored encrypted on the server; otherwise it stays in the browser.
+
+```bash
+LINEAR_API_KEY=lin_api_… freenotes linear import
+```
+
 ### Accounts and bring your own key
 
 Optional. With a Supabase project configured, users can sign in (magic-link email), sync their workspace across devices, and choose their own model provider and API key in Settings: Anthropic, OpenAI, or any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, a self-hosted Ollama). Keys are encrypted on the server with `FREENOTES_KEY_SECRET` and never sent back to the browser. Without an account the app stays local-first, exactly as before.
@@ -143,6 +151,7 @@ A pnpm monorepo organised around a domain model; see [`docs/architecture.md`](do
 | `@freenotes/ai-anthropic` | Claude adapter via `@anthropic-ai/sdk` structured outputs. |
 | `@freenotes/ai-openai` | OpenAI-compatible adapter (OpenAI, Groq, Mistral, OpenRouter, Ollama, …). |
 | `@freenotes/api` | The Hono API: provider registry, per-user assistant resolution, encrypted settings, account routes, the calendar feed proxy. |
+| `@freenotes/source-linear` | Linear as an issue source: the issues assigned to you over GraphQL, read-only. |
 | `@freenotes/supabase` | Supabase adapters: JWT authenticator, RLS-scoped settings, revisioned workspace sync. |
 | `@freenotes/ai-http` | Wire protocol, `fetch` client and framework-agnostic handlers for putting a chief of staff behind HTTP. |
 | `@freenotes/storage-fs` | Atomic JSON-file `WorkspaceRepository`. |

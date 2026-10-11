@@ -39,6 +39,11 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
   });
   useEffect(() => () => dictation.stop(), [dictation]);
 
+  const pullIssues = async () => {
+    const out = await state.run("Pulling issues from Linear…", (app) => app.importIssues());
+    if (out) setCaptured(out.added.map((t) => t.id));
+  };
+
   const capture = async () => {
     const out = await state.run("Capturing…", (app) => app.braindump({ text, refine }));
     if (out) {
@@ -88,6 +93,12 @@ export function Capture({ state, workspace, navigate }: { state: FreenotesState;
           </button>
         </div>
       </div>
+
+      {state.linearConnected && (
+        <button className="btn outline" disabled={!!state.busy} onClick={pullIssues}>
+          <Icon name="refresh" size={16} /> Pull my Linear issues
+        </button>
+      )}
 
       {captured && captured.length > 0 && (
         <div className="card accent stack">

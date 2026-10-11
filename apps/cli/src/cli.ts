@@ -19,6 +19,7 @@ import {
 } from "@freenotes/core";
 import { AnthropicChiefOfStaff, ChiefOfStaffError, type Effort } from "@freenotes/ai-anthropic";
 import { FileWorkspaceRepository } from "@freenotes/storage-fs";
+import { LinearIssueSource } from "@freenotes/source-linear";
 
 export interface CliIO {
   readonly stdout: (text: string) => void;
@@ -45,6 +46,7 @@ Commands
   notes [kind]            List compositions (braindump, schedule, execution-plan, results, achievement-report)
   show <id|latest>        Print a composition
   config                  Show or change working hours and scheduling policy
+  linear import           Mirror the Linear issues assigned to you as todos ($LINEAR_API_KEY)
   calendar list|add|remove|sync
                           Connect ICS feeds (the private address of a Google, Outlook or iCloud
                           calendar); events are kept out of focus blocks
@@ -239,6 +241,17 @@ export async function runCli(argv: readonly string[], io: CliIO): Promise<number
           const n = ws.calendar.events.filter((e) => e.calendarId === c.id).length;
           io.stdout(`${c.id}  ${c.label.padEnd(16)} ${n} events${c.lastSyncedAt ? `  synced ${formatDay(c.lastSyncedAt)}` : ""}${c.lastError ? `  error: ${c.lastError}` : ""}\n`);
         }
+        return 0;
+      }
+      case "linear": {
+        if (rest[0] !== "import") throw new DomainError("usage", "Usage: freenotes linear import");
+        const apiKey = io.env.LINEAR_API_KEY;
+        if (!apiKey) throw new DomainError("linear-config", "Set LINEAR_API_KEY to a personal API key (Linear → Settings → Security & access).");
+        const source = new LinearIssueSource({ apiKey, ...(io.fetch ? { fetch: io.fetch } : {}), ...(io.env.FREENOTES_LINEAR_URL ? { endpoint: io.env.FREENOTES_LINEAR_URL } : {}) });
+        const out = await app.importIssues(source);
+        io.stdout(`Saw ${out.seen} issue${out.seen === 1 ? "" : "s"}: ${out.added.length} new, ${out.closed.length} closed.\n`);
+        for (const t of out.added) io.stdout(`  + ${t.id} ${t.title}${t.deadline ? ` by ${t.deadline.date.toString()}` : ""}\n`);
+        for (const id of out.closed) io.stdout(`  ✓ ${id} closed\n`);
         return 0;
       }
       case "config": {

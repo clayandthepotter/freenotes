@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { chiefOfStaffFromEnv, FeedProxy, SecretBox } from "@freenotes/api";
+import { LinearIssueSource } from "@freenotes/source-linear";
 import { SupabaseAuthenticator, SupabaseUserSettingsRepository, supabaseConfigFromEnv } from "@freenotes/supabase";
 import { createApp } from "./app.js";
 
@@ -27,6 +28,7 @@ const app = createApp({
   chiefOfStaff,
   ...accounts,
   ...(process.env.FREENOTES_ALLOW_PRIVATE_FEEDS === "1" ? { calendarFeeds: new FeedProxy({ allowPrivate: true }) } : {}),
+  ...(process.env.FREENOTES_LINEAR_URL ? { issueSourceFor: (apiKey: string) => new LinearIssueSource({ apiKey, endpoint: process.env.FREENOTES_LINEAR_URL! }) } : {}),
   ...(existsSync(staticDir) ? { staticDir } : {}),
   ...(process.env.FREENOTES_CORS_ORIGIN ? { corsOrigin: process.env.FREENOTES_CORS_ORIGIN } : {}),
 });

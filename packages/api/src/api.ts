@@ -1,11 +1,12 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
-import { ChiefOfStaffError, DomainError, LocalDate, createTodo, type CalendarFeedFetcher, type ChiefOfStaff } from "@freenotes/core";
-import { createChiefOfStaffHandlers, ROUTES, type SettingsPatch, type SettingsView } from "@freenotes/ai-http";
+import { ChiefOfStaffError, DomainError, LocalDate, createTodo, type CalendarFeedFetcher, type ChiefOfStaff, type IssueSource } from "@freenotes/core";
+import { createChiefOfStaffHandlers, issueToWire, ROUTES, type IssuesResponse, type SettingsPatch, type SettingsView } from "@freenotes/ai-http";
 import { EMPTY_SETTINGS, type AssistantSettings, type AuthContext, type Authenticator, type ResolvedAssistant, type UserSettingsRepository } from "./ports.js";
 import { createProviderChiefOfStaff, findProvider, providerViews } from "./providers.js";
 import type { SecretBox } from "./secret-box.js";
 import { FeedProxy } from "./feed-proxy.js";
+import { LinearIssueSource } from "@freenotes/source-linear";
 
 export interface ApiOptions {
   /** The operator-configured assistant, used for anonymous requests and for users on "default". */
@@ -17,6 +18,8 @@ export interface ApiOptions {
   readonly secretBox?: SecretBox;
   /** Fetches calendar feeds for the browser. Defaults to a public-https-only proxy. */
   readonly calendarFeeds?: CalendarFeedFetcher;
+  /** Builds the issue source for a Linear key; tests and local runs can point it at a fake endpoint. */
+  readonly issueSourceFor?: (linearApiKey: string) => IssueSource;
 }
 
 export type ApiEnv = { Variables: { auth: AuthContext | null } };
@@ -103,6 +106,22 @@ export function createApi(options: ApiOptions): Hono<{ Variables: Vars }> {
 
   app.get(ROUTES.providers, (c) => c.json({ providers: providerViews() }));
 
+  // Issues assigned to me. Signed in: the stored (encrypted) Linear key. Local mode: the key travels in a header and is never stored here.
+  const issueSourceFor = options.issueSourceFor ?? ((apiKey: string) => new LinearIssueSource({ apiKey }));
+  app.get(ROUTES.issues, async (c) => {
+    const auth = c.get("auth");
+    let apiKey = c.req.header("x-linear-api-key")?.trim() || undefined;
+    if (!apiKey && auth && accounts) {
+      const settings = await loadSettings(auth);
+      if (settings.linearApiKeyCiphertext) apiKey = await options.secretBox!.open(settings.linearApiKeyCiphertext);
+    }
+    if (!apiKey) throw new ApiHttpError(401, "Connect Linear first: add a personal API key in Settings.");
+    const source = issueSourceFor(apiKey);
+    const issues = await source.assignedToMe();
+    const body: IssuesResponse = { source: source.name, issues: issues.map(issueToWire) };
+    return c.json(body);
+  });
+
   app.get(ROUTES.me, (c) => {
     const auth = requireAuth(c);
     return c.json({ user: auth.user });
@@ -160,6 +179,8 @@ function toView(s: AssistantSettings): SettingsView {
     ...(s.baseUrl ? { baseUrl: s.baseUrl } : {}),
     hasApiKey: Boolean(s.apiKeyCiphertext),
     ...(s.apiKeyLast4 ? { apiKeyLast4: s.apiKeyLast4 } : {}),
+    hasLinearKey: Boolean(s.linearApiKeyCiphertext),
+    ...(s.linearApiKeyLast4 ? { linearKeyLast4: s.linearApiKeyLast4 } : {}),
     ...(s.updatedAt ? { updatedAt: s.updatedAt } : {}),
   };
 }
@@ -186,10 +207,18 @@ export async function applyPatch(current: AssistantSettings, patch: SettingsPatc
       next = { ...next, apiKeyCiphertext: await box.seal(key), apiKeyLast4: key.slice(-4) };
     }
   }
+  if (patch.linearApiKey !== undefined) {
+    if (patch.linearApiKey === null || patch.linearApiKey.trim() === "") {
+      next = withOptional(withOptional(next, "linearApiKeyCiphertext", undefined), "linearApiKeyLast4", undefined);
+    } else {
+      const key = patch.linearApiKey.trim();
+      next = { ...next, linearApiKeyCiphertext: await box.seal(key), linearApiKeyLast4: key.slice(-4) };
+    }
+  }
   return next;
 }
 
-function withOptional<K extends "model" | "baseUrl" | "apiKeyCiphertext" | "apiKeyLast4">(s: AssistantSettings, key: K, value: string | undefined): AssistantSettings {
+function withOptional<K extends "model" | "baseUrl" | "apiKeyCiphertext" | "apiKeyLast4" | "linearApiKeyCiphertext" | "linearApiKeyLast4">(s: AssistantSettings, key: K, value: string | undefined): AssistantSettings {
   const { [key]: _drop, ...rest } = s;
   return (value === undefined ? rest : { ...rest, [key]: value }) as unknown as AssistantSettings;
 }

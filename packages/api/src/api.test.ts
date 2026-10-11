@@ -31,6 +31,19 @@ describe("chief-of-staff API", () => {
     expect((await app.request(ROUTES.ics)).status).toBe(400);
   });
 
+  it("reads issues with a local Linear key in a header, and asks for one otherwise", async () => {
+    const withSource = createApi({
+      chiefOfStaff: new HeuristicChiefOfStaff(),
+      issueSourceFor: (key) => ({ name: "linear", assignedToMe: async () => [{ source: "linear", id: "a", identifier: "ENG-1", title: `key ${key}`, url: "https://l/ENG-1", state: "todo", priority: 3, dueDate: LocalDate.parse("2026-10-16") }] }),
+    });
+    const ok = await withSource.request(ROUTES.issues, { headers: { "x-linear-api-key": "lin_x" } });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ source: "linear", issues: [{ source: "linear", id: "a", identifier: "ENG-1", title: "key lin_x", url: "https://l/ENG-1", state: "todo", priority: 3, dueDate: "2026-10-16" }] });
+    const none = await withSource.request(ROUTES.issues);
+    expect(none.status).toBe(401);
+    expect(((await none.json()) as { error: string }).error).toMatch(/Connect Linear/);
+  });
+
   it("returns 400 on malformed JSON", async () => {
     const res = await app.request(ROUTES.plan, { method: "POST", body: "{nope", headers: { "content-type": "application/json" } });
     expect(res.status).toBe(400);

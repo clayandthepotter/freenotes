@@ -22,7 +22,12 @@ function io(stdin = "") {
     readStdin: async () => stdin,
     env: { FREENOTES_AI: "heuristic" },
     cwd: dir,
-    fetch: (async (url: string | URL | Request) => (String(url).includes("work.ics") ? new Response(FEED, { status: 200 }) : new Response("nope", { status: 404 }))) as unknown as typeof fetch,
+    fetch: (async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes("work.ics")) return new Response(FEED, { status: 200 });
+      if (u.includes("graphql")) return new Response(JSON.stringify({ data: { viewer: { name: "Clay", assignedIssues: { nodes: [{ id: "a", identifier: "ENG-1", title: "Fix login", url: "https://linear.app/t/ENG-1", dueDate: "2026-10-16", estimate: 1, priority: 2, state: { type: "unstarted" }, project: null }] } } } }), { status: 200 });
+      return new Response("nope", { status: 404 });
+    }) as unknown as typeof fetch,
   };
   return { cli, out: () => out.join(""), err: () => err.join("") };
 }
@@ -106,6 +111,20 @@ describe("freenotes CLI", () => {
     t = io();
     expect(await runCli(["calendar", "remove", id], t.cli)).toBe(0);
     expect(t.out()).toContain("Removed.");
+  });
+
+  it("imports Linear issues with a key from the environment", async () => {
+    let t = io();
+    expect(await runCli(["linear", "import"], t.cli)).toBe(1);
+    expect(t.err()).toContain("LINEAR_API_KEY");
+    t = io();
+    const cli: CliIO = { ...t.cli, env: { ...t.cli.env, LINEAR_API_KEY: "lin_x" } };
+    expect(await runCli(["linear", "import"], cli)).toBe(0);
+    expect(t.out()).toContain("1 new, 0 closed");
+    expect(t.out()).toContain("+ T1 ENG-1 Fix login by 2026-10-16");
+    t = io();
+    expect(await runCli(["linear", "import"], { ...t.cli, env: { ...t.cli.env, LINEAR_API_KEY: "lin_x" } })).toBe(0);
+    expect(t.out()).toContain("0 new, 0 closed");
   });
 
   it("reports domain errors with exit code 1 and usage errors with 2", async () => {

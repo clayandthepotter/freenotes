@@ -2,6 +2,8 @@ import type {
   AchievementReport,
   CalendarFeedFetcher,
   ChiefOfStaff,
+  ExternalIssue,
+  IssueSource,
   ComposeReportRequest,
   ExecutionPlan,
   PlanExecutionRequest,
@@ -9,10 +11,12 @@ import type {
   TodoRefinement,
 } from "@freenotes/core";
 import {
+  issueFromWire,
   planCodec,
   refineCodec,
   reportCodec,
   ROUTES,
+  type IssuesResponse,
   type PlanResponse,
   type ProviderView,
   type RefineResponse,
@@ -155,5 +159,38 @@ export class HttpCalendarFeeds implements CalendarFeedFetcher {
       throw new HttpChiefOfStaffError(res.status, message);
     }
     return res.text();
+  }
+}
+
+/** Issues assigned to me, read through the server. A local (not signed-in) key rides along in a header. */
+export class HttpIssueSource implements IssueSource {
+  readonly name: string;
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly getToken: () => Promise<string | null | undefined>;
+
+  constructor(private readonly options: HttpChiefOfStaffOptions & { localLinearKey?: () => string | undefined } = {}) {
+    this.baseUrl = (options.baseUrl ?? "").replace(/\/$/, "");
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.getToken = options.getToken ?? (async () => null);
+    this.name = "linear";
+  }
+
+  async assignedToMe(): Promise<readonly ExternalIssue[]> {
+    const token = await this.getToken();
+    const local = this.options.localLinearKey?.();
+    const res = await this.fetchImpl(`${this.baseUrl}${ROUTES.issues}`, { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(local ? { "x-linear-api-key": local } : {}) } });
+    if (!res.ok) {
+      let message = `Issue tracker answered ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) message = body.error;
+      } catch {
+        /* not JSON */
+      }
+      throw new HttpChiefOfStaffError(res.status, message);
+    }
+    const body = (await res.json()) as IssuesResponse;
+    return body.issues.map(issueFromWire);
   }
 }

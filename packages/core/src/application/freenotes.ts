@@ -1,5 +1,6 @@
 import type { ChiefOfStaff } from "../ports/chief-of-staff.js";
 import type { CalendarFeedFetcher } from "../ports/calendar-feeds.js";
+import type { IssueSource } from "../ports/issue-source.js";
 import type { WorkspaceRepository } from "../ports/workspace-repository.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 import { randomIdGenerator, type IdGenerator } from "../shared/ids.js";
@@ -12,6 +13,7 @@ import {
   captureBraindump,
   composeAchievementReport,
   connectCalendar,
+  importIssues,
   planExecution,
   removeCalendar,
   syncCalendars,
@@ -33,6 +35,8 @@ export interface FreenotesOptions {
   readonly profile?: string;
   /** Needed for syncCalendars; absent means calendars cannot be pulled from this host. */
   readonly calendarFeeds?: CalendarFeedFetcher;
+  /** An external issue tracker to mirror, when the user connected one. */
+  readonly issues?: IssueSource;
 }
 
 /**
@@ -169,6 +173,16 @@ export class Freenotes {
     const out = await syncCalendars(ws, { clock: this.deps.clock, feeds });
     await this.options.repository.save(out.workspace);
     return out;
+  }
+
+  /** Pull the issues assigned to me and mirror them as todos. */
+  async importIssues(source: IssueSource | undefined = this.options.issues) {
+    if (!source) throw new DomainError("no-issue-source", "No issue tracker is connected.");
+    const issues = await source.assignedToMe();
+    const ws = await this.options.repository.load();
+    const out = importIssues(ws, issues, this.deps);
+    await this.options.repository.save(out.workspace);
+    return { ...out, source: source.name, seen: issues.length };
   }
 
   async updateSettings(update: (settings: Workspace["settings"]) => Workspace["settings"]) {

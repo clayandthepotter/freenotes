@@ -49,7 +49,7 @@ describe("accounts and settings", () => {
     const { call, settings, secretBox } = await build();
     const put = await call(ROUTES.settings, { method: "PUT", token: "token-ada", body: JSON.stringify({ provider: "anthropic", model: "claude-sonnet-5-5", apiKey: "sk-ant-abcdef1234", profile: "Head of product" }) });
     expect(put.status).toBe(200);
-    expect(await put.json()).toEqual({ profile: "Head of product", provider: "anthropic", model: "claude-sonnet-5-5", hasApiKey: true, apiKeyLast4: "1234", updatedAt: "2026-10-12T00:00:00Z" });
+    expect(await put.json()).toEqual({ profile: "Head of product", provider: "anthropic", model: "claude-sonnet-5-5", hasApiKey: true, hasLinearKey: false, apiKeyLast4: "1234", updatedAt: "2026-10-12T00:00:00Z" });
 
     const stored = settings.rows.get("u-ada")!;
     expect(stored.apiKeyCiphertext).not.toContain("abcdef");
@@ -61,7 +61,7 @@ describe("accounts and settings", () => {
 
     // Clearing the key and switching back to the operator default.
     const cleared = await call(ROUTES.settings, { method: "PUT", token: "token-ada", body: JSON.stringify({ apiKey: null, provider: "default" }) });
-    expect(await cleared.json()).toMatchObject({ provider: "default", hasApiKey: false, model: "claude-sonnet-5-5" });
+    expect(await cleared.json()).toMatchObject({ provider: "default", hasApiKey: false, hasLinearKey: false, model: "claude-sonnet-5-5" });
   });
 
   it("validates provider ids and base URLs", async () => {

@@ -258,6 +258,7 @@ function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspa
   const heuristic = state.assistant ? !state.assistant.online || state.assistant.status?.name === "heuristic" : false;
   if (heuristic) items.push({ key: "model", title: "Connect a model", body: "Sharper plans and reports with your own Anthropic or OpenAI key. Offline heuristics until then.", action: "Connect", go: () => navigate({ tab: "settings" }) });
   if (workspace.calendar.calendars.length === 0) items.push({ key: "calendar", title: "Connect your calendars", body: "Paste the private ICS link from Google, Outlook or iCloud. Meetings show on the brief and are kept out of your focus blocks.", action: "Connect", go: () => navigate({ tab: "settings", id: "calendars" }) });
+  if (!state.linearConnected) items.push({ key: "linear", title: "Connect Linear", body: "The issues assigned to you become todos; what you close there closes here.", action: "Connect", go: () => navigate({ tab: "settings", id: "linear" }) });
   if (!signedIn && canSignIn) items.push({ key: "account", title: "Sign in to sync", body: "Keep your workspace on every device. Magic link, no password.", action: "Sign in", go: () => navigate({ tab: "settings" }) });
   const signature = items.map((i) => i.key).join(",");
   const [dismissed, setDismissed] = useState(() => {
@@ -297,7 +298,7 @@ function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspa
           </button>
         </div>
       ))}
-      <div className="muted small">Mail and issue trackers: coming next.</div>
+      <div className="muted small">Mail: coming next.</div>
     </section>
   );
 }

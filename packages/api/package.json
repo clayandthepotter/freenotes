@@ -24,6 +24,7 @@
     "@freenotes/ai-http": "workspace:*",
     "@freenotes/ai-openai": "workspace:*",
     "@freenotes/core": "workspace:*",
+    "@freenotes/source-linear": "workspace:*",
     "hono": "^4.13.13"
   }
 }

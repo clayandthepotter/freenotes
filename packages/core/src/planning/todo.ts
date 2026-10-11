@@ -1,5 +1,6 @@
 import { DomainError } from "../shared/result.js";
 import type { LocalDate, LocalTime } from "../shared/local-date.js";
+import type { ExternalLink } from "../issues/issue.js";
 
 /** Human-facing todo code such as "T1". Stable for the life of a workspace. */
 export type TodoId = string;
@@ -30,6 +31,8 @@ export interface Todo {
   readonly estimateSource: EstimateSource;
   readonly deadline?: Deadline;
   readonly notes?: string;
+  /** Set when the todo mirrors an issue in an external tracker. */
+  readonly external?: ExternalLink;
 }
 
 export interface TodoDraft {
@@ -38,6 +41,7 @@ export interface TodoDraft {
   estimatedMinutes?: number;
   deadline?: Deadline;
   notes?: string;
+  external?: ExternalLink;
 }
 
 export function createTodo(id: TodoId, order: number, draft: TodoDraft): Todo {
@@ -55,6 +59,7 @@ export function createTodo(id: TodoId, order: number, draft: TodoDraft): Todo {
     estimateSource: draft.estimatedMinutes === undefined ? "default" : "explicit",
     ...(draft.deadline ? { deadline: draft.deadline } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
+    ...(draft.external ? { external: draft.external } : {}),
   };
   return todo;
 }
