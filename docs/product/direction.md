@@ -64,6 +64,10 @@ freenotes becomes the one place an executive looks. Everything that competes for
 - **Scheduled jobs** are server cron on the hosted API (Vercel cron) running sync, the morning brief and the Friday draft under each user's stored policies; a self-hosted API is the "custom relay".
 - **Budget** is out of scope for the next milestones; the composition model can absorb it later as an `expense` kind.
 
+## Installable (2026-10-12)
+
+A service worker emitted at build time precaches the shell and serves it offline; the API is never cached. Install prompts on Chromium, share-sheet steps on iOS, an update banner when a new build lands, and an About group in Settings. Push notifications (morning brief, reminders) are the next step and need VAPID keys on the server.
+
 ## Capture, then ask (2026-10-11)
 
 Braindump first, organise second. Capture never assumes: an item without a deadline or a time budget in the note is asked, one card at a time, when it is due and how long to budget, with "let the assistant estimate" as an explicit choice. Only then does scheduling and step decomposition begin. The onboarding "try it" step captures and says so; it does not promise a place on the day.

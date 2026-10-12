@@ -3,6 +3,7 @@ import type { ProviderView, SettingsPatch, SettingsView } from "@freenotes/ai-ht
 import { formatTime, LocalTime, WorkingHours, type Weekday, type Workspace } from "@freenotes/core";
 import type { AssistantMode } from "../lib/assistant.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
+import { BUILD, type PwaState } from "../lib/pwa.js";
 import type { SessionState } from "../lib/use-session.js";
 import { Icon } from "../ui/Icon.js";
 
@@ -16,7 +17,7 @@ const DAYS: Array<[Weekday, string]> = [
   [0, "S"],
 ];
 
-export function Settings({ state, session, workspace, focus }: { state: FreenotesState; session: SessionState; workspace: Workspace; focus?: string | undefined }) {
+export function Settings({ state, session, workspace, focus, pwa }: { state: FreenotesState; session: SessionState; workspace: Workspace; focus?: string | undefined; pwa: PwaState }) {
   const signedIn = Boolean(session.session);
   return (
     <div className="settings-section stack-lg">
@@ -81,6 +82,32 @@ export function Settings({ state, session, workspace, focus }: { state: Freenote
         <WorkspaceData state={state} signedIn={signedIn} />
       </Group>
 
+      <Group caption="About">
+        <div className="card stack">
+          <div className="row between">
+            <span className="muted small">Build</span>
+            <span className="mono">{BUILD}</span>
+          </div>
+          <div className="row between">
+            <span className="muted small">Running as</span>
+            <span>{pwa.standalone ? "Installed app" : "Browser tab"}</span>
+          </div>
+          <div className="row between">
+            <span className="muted small">Offline</span>
+            <span>{pwa.offlineReady || pwa.standalone ? "Ready" : "After first load"}</span>
+          </div>
+          {pwa.canInstall && (
+            <button className="btn outline" onClick={() => void pwa.install()}>
+              Install freenotes
+            </button>
+          )}
+          {pwa.updateReady && (
+            <button className="btn primary" onClick={pwa.applyUpdate}>
+              Update to the latest version
+            </button>
+          )}
+        </div>
+      </Group>
       <p className="muted small" style={{ textAlign: "center" }}>
         freenotes is open source · <a href="https://github.com/clayandthepotter/freenotes">GitHub</a>
       </p>

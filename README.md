@@ -2,7 +2,7 @@
 
 **Notes with a chief of staff.** Braindump what you must do, get a time-blocked schedule, step-by-step execution plans, an achievement report with areas to improve, and a reflection question for everything you finished.
 
-Open source (MIT), local-first, mobile-first, installable as a PWA. Works fully offline with a built-in heuristic assistant; add an Anthropic API key and Claude takes the chief-of-staff seat.
+Open source (MIT), local-first, mobile-first, and a proper PWA: install it from the browser (Chrome and Edge offer a prompt; on iOS use Share → Add to Home Screen), it opens full screen, and it keeps working offline. Works fully offline with a built-in heuristic assistant; add an Anthropic API key and Claude takes the chief-of-staff seat.
 
 ```
 braindump ──▶ triage (due? how long?) ──▶ schedule ──▶ execution plans
@@ -88,6 +88,10 @@ pnpm --filter @freenotes/server start      # API + serves the built web app on h
 For development with hot reload run the server as above and, in another terminal, `pnpm --filter @freenotes/web dev` (Vite proxies `/api` to the server).
 
 The web app stores your workspace in the browser (export/import as JSON from Settings). Only chief-of-staff requests leave the device, and they go to *your* server, so the API key never reaches the browser.
+
+### Installable and offline
+
+The web app ships a service worker built with each deploy. It precaches the whole app shell (HTML, scripts, styles, fonts, icons), serves it when the network is gone, and never caches anything under `/api`, so live data stays live. Your workspace is already local-first, so capture, triage, plans and notes all work offline; the assistant and calendar pulls resume when you are back online. When a new build is deployed the app shows a "new version is ready" banner with a Reload button. The brief's setup card offers Install on browsers with a prompt and the share-sheet steps on iOS; Settings → About shows the build, whether you are running installed, and offline readiness.
 
 ### Deploy to Vercel
 

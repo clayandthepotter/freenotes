@@ -13,12 +13,14 @@ import { Brief } from "./screens/Today.js";
 import { nameFromEmail } from "./lib/brief.js";
 import { Icon } from "./ui/Icon.js";
 import { useRoute } from "./ui/router.js";
+import { usePwa } from "./lib/pwa.js";
 import { TabBar, TopBar } from "./ui/Shell.js";
 
 export function App() {
   const session = useSession();
   const state = useFreenotes(session);
   const { route, navigate, back } = useRoute();
+  const pwa = usePwa();
   const ws = state.workspace;
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export function App() {
   } else {
     switch (route.tab) {
       case "today":
-        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} selfEmail={session.session?.user.email} />;
+        body = <Brief state={state} workspace={ws} navigate={navigate} name={name} signedIn={Boolean(session.session)} canSignIn={session.available} selfEmail={session.session?.user.email} pwa={pwa} />;
         break;
       case "triage":
         title = "Quick questions";
@@ -99,7 +101,7 @@ export function App() {
         title = "Settings";
         subtitle = state.assistant?.label;
         onBack = () => back({ tab: "today" });
-        body = <Settings state={state} session={session} workspace={ws} focus={route.id} />;
+        body = <Settings state={state} session={session} workspace={ws} focus={route.id} pwa={pwa} />;
         break;
     }
   }
@@ -110,6 +112,14 @@ export function App() {
       <div className="main">
         <TopBar title={title} {...(subtitle ? { subtitle } : {})} {...(onBack ? { onBack } : {})} right={route.tab === "settings" ? undefined : settingsButton} variant={route.tab === "today" ? "brief" : "default"} />
         <main className="content stack">
+          {pwa.updateReady && (
+            <div className="banner update" role="status">
+              <Icon name="refresh" size={18} /> <span className="grow">A new version of freenotes is ready.</span>
+              <button className="btn sm primary" onClick={pwa.applyUpdate}>
+                Reload
+              </button>
+            </div>
+          )}
           {state.busy && (
             <div className="banner busy">
               <span className="spinner" /> {state.busy}

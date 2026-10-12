@@ -373,3 +373,6 @@ label.field > small { font-weight: 400; color: var(--muted); }
 .triage .q-title { font-weight: 650; }
 .chips.wrap { flex-wrap: wrap; }
 .pill.warn { background: var(--warn-soft); color: var(--warn); }
+.banner.update { background: var(--tint); color: var(--text); border: 1px solid var(--accent-soft); }
+.steps.plain { list-style: decimal; padding-left: 20px; gap: 8px; }
+.steps.plain li { display: list-item; background: none; border: 0; padding: 2px 0; cursor: default; }

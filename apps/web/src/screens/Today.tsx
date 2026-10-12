@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { eventsOn, formatDay, formatMinutes, formatTime, LocalDate, LocalTime, needsTriage, TimeRange, type CalendarEvent, type TimeBlock, type Todo, type Workspace } from "@freenotes/core";
 import { attention, greeting, people as derive, summaryLine, type AttentionItem } from "../lib/brief.js";
 import type { FreenotesState } from "../lib/use-freenotes.js";
+import type { PwaState } from "../lib/pwa.js";
 import { Icon } from "../ui/Icon.js";
 import { Sheet } from "../ui/Shell.js";
 import { StatusSheet } from "../ui/StatusSheet.js";
@@ -9,13 +10,14 @@ import type { Route } from "../ui/router.js";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, selfEmail }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined; signedIn: boolean; canSignIn: boolean; selfEmail?: string | undefined }) {
+export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, selfEmail, pwa }: { state: FreenotesState; workspace: Workspace; navigate: (r: Route) => void; name?: string | undefined; signedIn: boolean; canSignIn: boolean; selfEmail?: string | undefined; pwa: PwaState }) {
   const now = new Date();
   const todayKey = LocalDate.fromDate(now).toString();
   const [dayKey, setDayKey] = useState(todayKey);
   const [picked, setPicked] = useState<Todo>();
   const [attn, setAttn] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [iosSheet, setIosSheet] = useState(false);
   const people = useMemo(() => derive(workspace, now, selfEmail), [workspace, selfEmail]); // eslint-disable-line react-hooks/exhaustive-deps
   const cold = people.filter((p) => p.status === "cold");
   const schedule = workspace.schedule;
@@ -71,7 +73,14 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, s
         <p className="summary">{summaryLine(workspace, now)}</p>
       </header>
 
-      <GetReady workspace={workspace} state={state} navigate={navigate} signedIn={signedIn} canSignIn={canSignIn} />
+      <GetReady workspace={workspace} state={state} navigate={navigate} signedIn={signedIn} canSignIn={canSignIn} pwa={pwa} onIosHint={() => setIosSheet(true)} />
+      <Sheet open={iosSheet} onClose={() => setIosSheet(false)} title="Add to your home screen">
+        <ol className="steps plain">
+          <li>Tap the Share button at the bottom of Safari.</li>
+          <li>Choose "Add to Home Screen".</li>
+          <li>Tap Add. freenotes opens full screen, works offline, and keeps your workspace.</li>
+        </ol>
+      </Sheet>
 
       <div className="week" role="tablist" aria-label="Week">
         {days.map((d) => {
@@ -314,8 +323,10 @@ export function Brief({ state, workspace, navigate, name, signedIn, canSignIn, s
 const DISMISS_KEY = "freenotes.setup.dismissed";
 
 /** The setup card: what is still missing to make freenotes fully yours. Dismissible, comes back when something new is missing. */
-function GetReady({ workspace, state, navigate, signedIn, canSignIn }: { workspace: Workspace; state: FreenotesState; navigate: (r: Route) => void; signedIn: boolean; canSignIn: boolean }) {
+function GetReady({ workspace, state, navigate, signedIn, canSignIn, pwa, onIosHint }: { workspace: Workspace; state: FreenotesState; navigate: (r: Route) => void; signedIn: boolean; canSignIn: boolean; pwa: PwaState; onIosHint: () => void }) {
   const items: Array<{ key: string; title: string; body: string; action: string; go: () => void }> = [];
+  if (pwa.canInstall) items.push({ key: "install", title: "Install freenotes", body: "Opens from your home screen, full screen, and works offline.", action: "Install", go: () => void pwa.install() });
+  else if (pwa.iosHint) items.push({ key: "install-ios", title: "Add to your home screen", body: "Opens full screen like an app and works offline.", action: "How", go: onIosHint });
   if (!workspace.profile.name) items.push({ key: "name", title: "Add your name", body: "Your brief and your reports address you properly.", action: "Add", go: () => navigate({ tab: "setup" }) });
   if (!workspace.profile.style) items.push({ key: "style", title: "Find your working style", body: "Eight quick questions. The brief and the plans adapt to the answer.", action: "Start", go: () => navigate({ tab: "setup" }) });
   const heuristic = state.assistant ? !state.assistant.online || state.assistant.status?.name === "heuristic" : false;
