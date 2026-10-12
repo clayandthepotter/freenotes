@@ -37,7 +37,7 @@ export function Settings({ state, session, workspace, focus, pwa }: { state: Fre
               Sign out
             </button>
           ) : session.available ? (
-            <SignInForm session={session} />
+            <SignInForm session={session} standalone={pwa.standalone} />
           ) : null}
         </div>
       </Group>
@@ -124,12 +124,13 @@ function Group({ caption, children }: { caption: string; children: React.ReactNo
   );
 }
 
-function SignInForm({ session }: { session: SessionState }) {
+function SignInForm({ session, standalone }: { session: SessionState; standalone: boolean }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const codeRef = useRef<HTMLInputElement>(null);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError(undefined);
@@ -141,26 +142,56 @@ function SignInForm({ session }: { session: SessionState }) {
       setBusy(false);
     }
   };
+  const verify = (value: string) => run(() => session.verifyCode(email, value));
+  useEffect(() => {
+    if (sent) codeRef.current?.focus();
+  }, [sent]);
   if (sent) {
     return (
-      <div className="stack">
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (code.trim().length >= 6) void verify(code);
+        }}
+      >
         <p className="small">
-          Check <strong>{email}</strong> for a sign-in link and open it on this device.
+          We emailed a 6-digit code to <strong>{email}</strong>. Enter it here.
         </p>
-        <details>
-          <summary className="small muted">Have a code instead?</summary>
-          <div className="row" style={{ marginTop: 8 }}>
-            <input inputMode="numeric" placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value)} />
-            <button className="btn outline" disabled={busy || code.trim().length < 6} onClick={() => run(() => session.verifyCode(email, code))}>
-              Verify
-            </button>
-          </div>
-        </details>
-        <button className="link small" onClick={() => setSent(false)}>
-          Use a different email
+        <input
+          ref={codeRef}
+          className="code-input"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="one-time-code"
+          maxLength={8}
+          placeholder="000000"
+          value={code}
+          aria-label="Sign-in code"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, "");
+            setCode(v);
+            if (v.length === 6 && !busy) void verify(v);
+          }}
+        />
+        <button className="btn primary" type="submit" disabled={busy || code.trim().length < 6}>
+          {busy ? "Checking…" : "Sign in"}
         </button>
+        <p className="muted small">
+          {standalone
+            ? "The link in the same email opens in your browser, not in this app, so use the code here."
+            : "The email also has a link; it signs you in wherever it opens, so the code is the safer choice on a phone."}
+        </p>
+        <div className="row between">
+          <button type="button" className="link small" onClick={() => void run(() => session.sendMagicLink(email))}>
+            Send a new code
+          </button>
+          <button type="button" className="link small" onClick={() => setSent(false)}>
+            Use a different email
+          </button>
+        </div>
         {error && <p className="banner error">{error}</p>}
-      </div>
+      </form>
     );
   }
   return (
@@ -176,9 +207,9 @@ function SignInForm({ session }: { session: SessionState }) {
     >
       <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
       <button className="btn primary" type="submit" disabled={busy || !email.includes("@")}>
-        {busy ? "Sending…" : "Email me a sign-in link"}
+        {busy ? "Sending…" : "Email me a code"}
       </button>
-      <p className="muted small">No password. We email you a link.</p>
+      <p className="muted small">No password. We email you a 6-digit code to type here.</p>
       {error && <p className="banner error">{error}</p>}
     </form>
   );

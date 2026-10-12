@@ -127,13 +127,19 @@ LINEAR_API_KEY=lin_api_… freenotes linear import
 
 ### Accounts and bring your own key
 
-Optional. With a Supabase project configured, users can sign in (magic-link email), sync their workspace across devices, and choose their own model provider and API key in Settings: Anthropic, OpenAI, or any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, a self-hosted Ollama). Keys are encrypted on the server with `FREENOTES_KEY_SECRET` and never sent back to the browser. Without an account the app stays local-first, exactly as before.
+Optional. With a Supabase project configured, users can sign in (a 6-digit code by email), sync their workspace across devices, and choose their own model provider and API key in Settings: Anthropic, OpenAI, or any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, a self-hosted Ollama). Keys are encrypted on the server with `FREENOTES_KEY_SECRET` and never sent back to the browser. Without an account the app stays local-first, exactly as before.
 
 Set up:
 
 1. Create a Supabase project and apply the schema in [`supabase/migrations`](supabase/migrations) (tables `workspaces` and `user_settings`, both with row-level security).
-2. In Supabase → Authentication → URL configuration, set the Site URL to your deployment (and add `http://localhost:5173` for development) so magic links redirect correctly.
-3. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `FREENOTES_KEY_SECRET` on the server, and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` for the web build. No service-role key is needed anywhere.
+2. In Supabase → Authentication → URL configuration, set the Site URL to your deployment (and add `http://localhost:5173` for development).
+3. In Supabase → Authentication → Email Templates → Magic Link, include the one-time code: the app signs people in with a 6-digit code typed into the app, because a link opens in the browser rather than in the installed app. A minimal template:
+   ```html
+   <h2>Your freenotes code</h2>
+   <p>Enter this code in the app: <strong style="font-size:24px;letter-spacing:4px">{{ .Token }}</strong></p>
+   <p>Or, in a browser, <a href="{{ .ConfirmationURL }}">sign in with this link</a>.</p>
+   ```
+4. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `FREENOTES_KEY_SECRET` on the server, and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` for the web build. No service-role key is needed anywhere.
 
 See [ADR 0004](docs/adr/0004-accounts-and-bring-your-own-key.md) for the design.
 
